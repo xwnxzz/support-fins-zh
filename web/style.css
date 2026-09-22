@@ -23,7 +23,12 @@ html, body {
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
-  font: 13px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* CJK faces are listed explicitly ahead of the generic fallback: the app ships a
+     Chinese UI, and a bare system-ui stack picks an unpredictable face for Han
+     characters on some Windows/Linux installs (wrong weight, or tofu). */
+  font: 13px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+        "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB",
+        "Noto Sans SC", "Source Han Sans SC", "WenQuanYi Micro Hei", sans-serif;
 }
 
 #viewport { position: fixed; inset: 0; }
@@ -80,6 +85,12 @@ html, body {
   top: 0; left: 0; right: 0;
   display: flex;
   align-items: center;
+  /* The localized labels are longer than the English ones, so on a narrow window
+     the single-line bar pushed the last controls (GitHub / Ko-fi) off the right
+     edge. Wrap instead of clipping: a second row is readable over the gradient,
+     an off-screen button is not. */
+  flex-wrap: wrap;
+  row-gap: 8px;
   gap: 14px;
   padding: 10px 14px;
   background: linear-gradient(var(--bg), transparent);
@@ -95,6 +106,7 @@ html, body {
   font-weight: 650;
   letter-spacing: .02em;
   margin-right: 4px;
+  white-space: nowrap;       /* never break the wordmark across two lines */
 }
 .brand-mark { height: 20px; width: auto; display: block; }
 

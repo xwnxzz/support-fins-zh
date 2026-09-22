@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Support Fins</title>
+<title>支撑鳍 Support Fins — 一键生成可掰断支撑</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -24,37 +24,37 @@
 <!-- Long-build spinner: revealed by a 1s timer while a support build runs in the
      worker, hidden the moment it lands, so a quick rebuild never flashes it.
      Purely informational; pointer-events:none lets clicks pass to the canvas. -->
-<div id="spinner" aria-live="polite"><span class="ring"></span>generating supports…</div>
+<div id="spinner" aria-live="polite"><span class="ring"></span>正在生成支撑…</div>
 
 <header id="topbar">
-  <span class="brand"><img src="favicon.svg" alt="" class="brand-mark">Support&nbsp;Fins</span>
+  <span class="brand" title="Support Fins — 打印免支撑"><img src="favicon.svg" alt="" class="brand-mark">支撑鳍&nbsp;Support&nbsp;Fins</span>
   <label class="btn primary">
-    Open STL / 3MF<input type="file" id="file" accept=".stl,.3mf" hidden>
+    打开 STL / 3MF<input type="file" id="file" accept=".stl,.3mf" hidden>
   </label>
   <label class="field">
-    Build volume
+    成型空间
     <select id="volume"></select>
   </label>
   <span class="field custom-vol" id="custom-vol" hidden>
-    <input type="number" id="vx" min="20" max="2000" step="1" aria-label="width">×<input
-           type="number" id="vy" min="20" max="2000" step="1" aria-label="depth">×<input
-           type="number" id="vz" min="20" max="2000" step="1" aria-label="height">mm
+    <input type="number" id="vx" min="20" max="2000" step="1" aria-label="宽度">×<input
+           type="number" id="vy" min="20" max="2000" step="1" aria-label="深度">×<input
+           type="number" id="vz" min="20" max="2000" step="1" aria-label="高度">mm
   </span>
-  <label class="field" title="Surface angle from the plate below which a face needs support.">
-    Overhang
+  <label class="field" title="相对底板低于此角度的表面需要支撑。">
+    悬垂角
     <input type="range" id="thr" min="30" max="70" step="1" value="45">
     <output id="thr-val">45°</output>
   </label>
   <span class="spacer"></span>
-  <button class="btn" id="fins-toggle">Add fins</button>
-  <button class="btn" id="export">Export STL</button>
-  <button class="btn" id="export-3mf" title="Opens oriented and support-free in Bambu Studio, OrcaSlicer, or PrusaSlicer. Bambu/PrusaSlicer may note 'no config, geometry only' — expected; the part still comes in correct.">Export 3MF</button>
+  <button class="btn" id="fins-toggle">添加支撑鳍</button>
+  <button class="btn" id="export">导出 STL</button>
+  <button class="btn" id="export-3mf" title="在 Bambu Studio、OrcaSlicer、PrusaSlicer 中打开时已按此朝向摆好且无需支撑。Bambu/PrusaSlicer 可能提示“无配置文件，仅载入几何”——这是正常的，零件本身完全正确。">导出 3MF</button>
   <a class="btn gh" href="https://github.com/gittrahan/support-fins" target="_blank" rel="noopener"
-     title="Source code on GitHub. Runs entirely in your browser; no file ever leaves your machine."
-     aria-label="Support Fins on GitHub"><svg viewBox="0 0 16 16" width="16" height="16"
+     title="GitHub 上的源代码。全部在浏览器内运行，文件不会离开你的电脑。"
+     aria-label="在 GitHub 上查看 Support Fins"><svg viewBox="0 0 16 16" width="16" height="16"
      aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>&nbsp;GitHub</a>
   <a class="btn kofi" href="https://ko-fi.com/matthewtrahan" target="_blank" rel="noopener"
-     title="Support Fins is free and open source — buy me a coffee on Ko-fi.">☕&nbsp;Ko-fi</a>
+     title="Support Fins 免费开源 —— 可以在 Ko-fi 上请作者喝杯咖啡。">☕&nbsp;Ko-fi</a>
 </header>
 
 <!-- The two stacked left-hand panels (stats + rotate controls) share one fixed
@@ -64,50 +64,50 @@
 <div id="left-rail">
 <aside id="stats" hidden>
   <dl>
-    <dt>File</dt>             <dd id="s-name">—</dd>
-    <dt>Triangles</dt>        <dd id="s-tris">—</dd>
-    <dt>Size</dt>             <dd id="s-bbox">—</dd>
-    <dt>Volume</dt>           <dd id="s-fit">—</dd>
+    <dt>文件</dt>             <dd id="s-name">—</dd>
+    <dt>三角面</dt>           <dd id="s-tris">—</dd>
+    <dt>尺寸</dt>             <dd id="s-bbox">—</dd>
+    <dt>成型空间</dt>         <dd id="s-fit">—</dd>
   </dl>
   <hr>
   <dl>
-    <dt><i class="sw sw-over"></i>Overhangs</dt> <dd id="s-over">—</dd>
-    <dt>Area</dt>                                <dd id="s-overarea">—</dd>
-    <dt><i class="sw sw-bed"></i>Bed&nbsp;contact</dt> <dd id="s-bed">—</dd>
-    <dt><i class="sw sw-fin"></i>Fins</dt>       <dd><span id="s-fins">—</span><button
+    <dt><i class="sw sw-over"></i>悬垂</dt>      <dd id="s-over">—</dd>
+    <dt>面积</dt>                                <dd id="s-overarea">—</dd>
+    <dt><i class="sw sw-bed"></i>底面接触</dt>   <dd id="s-bed">—</dd>
+    <dt><i class="sw sw-fin"></i>支撑</dt>       <dd><span id="s-fins">—</span><button
         type="button" class="note-info" id="s-fin-info" hidden
-        aria-label="How these supports work, and what this pose leaves uncovered">i</button></dd>
-    <dt><i class="sw sw-pad"></i>Bed&nbsp;pad</dt> <dd id="s-pad">—</dd>
-    <dt>Analysis</dt>                            <dd id="s-time">—</dd>
+        aria-label="这些支撑的工作原理，以及当前朝向未覆盖的部分">i</button></dd>
+    <dt><i class="sw sw-pad"></i>底盘垫</dt>     <dd id="s-pad">—</dd>
+    <dt>分析</dt>                                <dd id="s-time">—</dd>
   </dl>
 </aside>
 
 <aside id="orient" hidden>
-  <span class="lbl">Rotate 90°</span>
-  <button class="btn sm" id="rot-x" aria-label="Rotate 90 degrees about X">X</button>
-  <button class="btn sm" id="rot-y" aria-label="Rotate 90 degrees about Y">Y</button>
-  <button class="btn sm" id="rot-z" aria-label="Rotate 90 degrees about Z">Z</button>
-  <button class="btn sm" id="rot-reset">Reset</button>
-  <button class="btn sm" id="undo" title="Undo (⌘/Ctrl+Z)" disabled>Undo</button>
-  <button class="btn sm" id="redo" title="Redo (⇧⌘/Ctrl+Shift+Z)" disabled>Redo</button>
+  <span class="lbl">旋转 90°</span>
+  <button class="btn sm" id="rot-x" aria-label="绕 X 轴旋转 90 度">X</button>
+  <button class="btn sm" id="rot-y" aria-label="绕 Y 轴旋转 90 度">Y</button>
+  <button class="btn sm" id="rot-z" aria-label="绕 Z 轴旋转 90 度">Z</button>
+  <button class="btn sm" id="rot-reset">复位</button>
+  <button class="btn sm" id="undo" title="撤销 (⌘/Ctrl+Z)" disabled>撤销</button>
+  <button class="btn sm" id="redo" title="重做 (⇧⌘/Ctrl+Shift+Z)" disabled>重做</button>
   <p class="readout"><span id="rot-now">X 0° · Y 0° · Z 0°</span><span id="rot-delta"></span></p>
-  <p class="hint">Drag the rings to turn it, or:</p>
+  <p class="hint">拖动圆环旋转零件，或者：</p>
   <button class="btn sm" id="lay-face"
-          title="Click this, then click a face to set it flat on the bed. Off by default so a stray click can't re-lay the part.">Lay a face flat</button>
+          title="先点这里，再点零件上的某个面，就能让该面平贴底板。默认关闭，避免误点打乱摆放。">以面贴平</button>
   <!-- Automatic strength view: no input. The faint frames show how the print is
        layered (they stay horizontal while the part turns inside them), and the note
        says where this orientation is weak. A printed part splits across its layers,
        so orientation IS strength -- this makes that visible as you rotate. -->
   <div class="layerview">
-    <label class="check layers-toggle" title="Show the horizontal print layers around the part.">
-      <input type="checkbox" id="show-layers">Show layers
+    <label class="check layers-toggle" title="显示零件周围的水平打印层线。">
+      <input type="checkbox" id="show-layers">显示层线
     </label>
   </div>
   <div class="suggest">
     <div class="suggest-head">
-      <button class="btn sm" id="suggest-orient">Suggest orientation</button>
+      <button class="btn sm" id="suggest-orient">推荐摆放方向</button>
       <button class="disclosure" id="suggest-toggle" hidden aria-expanded="true"
-              aria-label="Collapse suggestions" title="Collapse">&rsaquo;</button>
+              aria-label="收起推荐结果" title="收起">&rsaquo;</button>
     </div>
     <div id="suggest-body">
       <p class="hint" id="suggest-note"></p>
@@ -122,18 +122,18 @@
        nothing that collides with click-to-lay. No fake "Nx stronger" number: the
        verdict is qualitative. -->
   <div class="loadfx">
-    <p class="loadfx-lede"><strong>Strength arrow</strong>: which way is it loaded?</p>
-    <div class="strength-pad" role="group" aria-label="Load direction">
-      <button class="btn sm" id="load-up"    aria-label="Load points up">↑</button>
-      <button class="btn sm" id="load-down"  aria-label="Load points down">↓</button>
-      <button class="btn sm" id="load-left"  aria-label="Load points left">←</button>
-      <button class="btn sm" id="load-right" aria-label="Load points right">→</button>
-      <button class="btn sm" id="load-front" aria-label="Load points toward you">⊙ front</button>
-      <button class="btn sm" id="load-back"  aria-label="Load points away from you">⊗ back</button>
+    <p class="loadfx-lede"><strong>受力箭头</strong>：零件往哪受力？</p>
+    <div class="strength-pad" role="group" aria-label="受力方向">
+      <button class="btn sm" id="load-up"    aria-label="受力朝上">↑</button>
+      <button class="btn sm" id="load-down"  aria-label="受力朝下">↓</button>
+      <button class="btn sm" id="load-left"  aria-label="受力朝左">←</button>
+      <button class="btn sm" id="load-right" aria-label="受力朝右">→</button>
+      <button class="btn sm" id="load-front" aria-label="受力朝向自己">⊙ 前</button>
+      <button class="btn sm" id="load-back"  aria-label="受力远离自己">⊗ 后</button>
     </div>
-    <button class="btn sm" id="load-clear" hidden>Clear</button>
+    <button class="btn sm" id="load-clear" hidden>清除</button>
     <p class="load-verdict" id="load-note" hidden></p>
-    <button class="btn sm" id="load-suggest" hidden>Turn to the strongest printable pose</button>
+    <button class="btn sm" id="load-suggest" hidden>转到可打印的最强朝向</button>
   </div>
 </aside>
 <!-- Spacer AFTER the panels so they top-anchor and grow DOWNWARD: content that
@@ -157,34 +157,34 @@
        keeps today's tight grip; PETG widens the support gap + fin-tine standoff,
        halves the tine bite, thins the bed pad, and turns the pad's tack into a gap.
        Applied in app.js (applyMaterial), which also re-syncs the tunables below. -->
-  <label class="fld" id="material-fld" title="The filament you'll print in. PETG fuses to supports much harder than PLA, so PETG loosens the gaps, shrinks the tine bite, and gives the bed pad a gap instead of a bite. PLA keeps the tighter grip.">
-    Material
+  <label class="fld" id="material-fld" title="你要使用的耗材。PETG 与支撑的粘连远强于 PLA，所以选 PETG 会加大各处间隙、减小卡齿咬入量，并把底盘垫的咬合改成留缝。PLA 保持更紧的抓附。">
+    材料
     <select id="material">
       <option value="pla">PLA</option>
       <option value="petg">PETG</option>
     </select>
   </label>
   <label class="fld">
-    Placement
-    <select id="fin-mode" title="Who places the support.">
+    放置方式
+    <select id="fin-mode" title="由谁来决定支撑的位置。">
       <!-- Two modes only, on purpose. AUTO (fins.js mode 'auto') is the default and
            does everything: a tined combined fin on each overhang face steep and flat
            enough to grip, a plain breakaway prop under the shallow/curved ones that
            can't take a fin. DRAW lets you place a fin by hand. The old fins-only
            "Combined fin" mode was dropped -- it built nothing (and said nothing) on
            parts with no fin sites, which just read as broken. -->
-      <option value="auto">Auto — place supports for me</option>
-      <option value="draw">Draw — place them by hand</option>
+      <option value="auto">自动 — 自动放置支撑</option>
+      <option value="draw">手动 — 我自己放置</option>
     </select>
   </label>
-  <label class="check" title="A tilted part rests on an edge and peels off the plate without one.">
-    <input type="checkbox" id="bed-pad" checked>Add bed pad
+  <label class="check" title="倾斜摆放的零件只靠一条边接触底板，没有底盘垫容易翘边脱落。">
+    <input type="checkbox" id="bed-pad" checked>添加底盘垫
   </label>
   <!-- Combined support toggle: ON = horizontal tines fuse the support to the part
        so it grips (Slant3D combined support); OFF = the plain breakaway wall that
        just stands under the overhang and snaps off. Same fin, tines or no tines. -->
-  <label class="check" title="Tines fuse the support to the part so it grips instead of just propping. Off = plain breakaway wall.">
-    <input type="checkbox" id="tines" checked>Tines (grip the part)
+  <label class="check" title="卡齿把支撑与零件咬合在一起，形成抓附而不只是顶住。关闭 = 单纯的可掰断支撑墙。">
+    <input type="checkbox" id="tines" checked>卡齿（咬住零件）
   </label>
   <!-- Tine grip density: how tightly the horizontal tine comb is spaced along each
        gripping support. Light = a loose comb (fewest marks, the default) — a per-wall
@@ -193,8 +193,8 @@
        Defaults Light so the part comes out cleanest; dial up only if it needs the grip.
        Shown only when Tines is on. -->
   <label class="fld" id="tinegrip-fld"
-         title="How tightly to space the grip tines. Light = fewest marks (default), a per-wall floor keeps grip; Firm = dense comb / max grip for a tippy or tall part.">
-    Tine grip <span class="mut">light ⟶ firm</span>
+         title="卡齿的排列密度。疏 = 痕迹最少（默认），每段墙仍保留最少卡齿以维持抓附；密 = 密集齿梳、最大抓附，适合头重脚轻或较高的零件。">
+    卡齿密度 <span class="mut">疏 ⟶ 密</span>
     <input type="range" id="tine-density" min="0" max="100" step="5" value="0">
   </label>
   <!-- Contact/gap tuning: the default holds and breaks off for most parts, but the
@@ -207,16 +207,16 @@
        clean bead and BEND off instead of tearing. That only holds if this matches
        the layer height you actually slice at -- set it wrong and the tines slice
        into ~1.5 layers and leave welts. Shown only when Tines is on. -->
-  <label class="fld" id="layerh-fld" title="Set this to the layer height you slice at. The grip tines are one layer tall so they snap off clean; if this doesn't match your slicer, the tines tear and leave marks. Default 0.2mm.">
-    Layer height <span class="mut">mm</span>
+  <label class="fld" id="layerh-fld" title="请填你实际切片用的层高。卡齿正好一层高，因此能干净掰断；如果这里与实际层高不符，卡齿会被撕裂并留下痕迹。默认 0.2mm。">
+    层高 <span class="mut">mm</span>
     <input type="number" id="layer-height" min="0.08" max="0.4" step="0.04" value="0.2">
   </label>
-  <label class="fld" title="Clearance between a support top and the part. Bigger = cleaner surface / easier removal; too big stops holding the overhang. Default 0.2mm.">
-    Support gap <span class="mut">mm</span>
+  <label class="fld" title="支撑顶部与零件之间的间隙。越大 = 表面越干净、越好拆；太大则托不住悬垂。默认 0.2mm。">
+    支撑间隙 <span class="mut">mm</span>
     <input type="number" id="gap" min="0.1" max="0.4" step="0.05" value="0.2">
   </label>
-  <label class="fld" id="padgrip-fld" title="How the bed pad meets a tilted part. Positive = bites in to hold harder; 0 = flush; negative = a gap that snaps off cleaner (the PETG default, since PETG welds hard). Default 0.05mm on PLA.">
-    Pad grip <span class="mut">mm</span>
+  <label class="fld" id="padgrip-fld" title="底盘垫与倾斜零件的接触方式。正值 = 咬入更多、抓得更牢；0 = 齐平；负值 = 留缝，掰断更干净（PETG 因为粘连强而默认留缝）。PLA 默认 0.05mm。">
+    底盘垫咬合 <span class="mut">mm</span>
     <input type="number" id="pad-grip" min="-0.2" max="0.3" step="0.05" value="0.05">
   </label>
   <!-- Wide-face row density: an overhang face too wide for one corner brace gets a
@@ -226,23 +226,23 @@
        so a wide face is never left bare. Dial up only if a broad plate sags between
        braces. Only bites on a broad face; narrow parts keep their 2-corner bracing. -->
   <label class="fld" id="coverage-fld"
-         title="How densely to line a WIDE overhang face with fins. The middle is the anti-sag default; drag LEFT for fewer fins (a small part can go down to one — the readout warns if a broad face then risks sagging), RIGHT for more support. Narrow parts are unaffected.">
-    Wide-face coverage <span class="mut">sparse ⟶ dense</span>
+         title="在大面积悬垂面上排布支撑鳍的密度。中间是防下垂的默认值；往左拉 = 更少的鳍（小零件可以只留一个，若宽面有下垂风险读数会提示），往右拉 = 更多支撑。窄零件不受影响。">
+    宽面覆盖密度 <span class="mut">疏 ⟶ 密</span>
     <input type="range" id="coverage" min="0" max="100" step="5" value="50">
   </label>
   <!-- Suggest + Draw mix: place extra walls by hand where auto-placement missed.
        Shown only in Suggest mode (toggled in app.js). -->
   <button class="btn sm" id="augment-toggle" hidden
-          title="Place extra breakaway walls by hand, on top of the auto-placed ones.">+ Add walls by hand</button>
+          title="在自动放置的基础上，再手动补几段可掰断支撑墙。">+ 手动添加支撑墙</button>
   <!-- Draw controls: shown while placing by hand. Hint text is set per mode in
        app.js (syncDrawControls): a support fin on a face in Draw, a two-point
        wall in the Suggest "+ Add" augment. -->
   <div id="draw-controls" hidden>
-    <p class="draw-hint" id="draw-hint">Click an <strong>overhang face</strong> — it lights
-      up green when a fin can go there — to stand a support fin against it.</p>
+    <p class="draw-hint" id="draw-hint">点击<strong>悬垂面</strong>（可以放支撑鳍时会亮起
+      绿色）即可在它下方立起一个支撑鳍。</p>
     <div class="draw-btns">
-      <button class="btn sm" id="draw-undo">Undo</button>
-      <button class="btn sm" id="draw-clear">Clear all</button>
+      <button class="btn sm" id="draw-undo">撤销</button>
+      <button class="btn sm" id="draw-clear">全部清除</button>
     </div>
   </div>
 </aside>
@@ -263,9 +263,9 @@
   <p class="over-warn" id="over-warn"></p>
   <div id="receipt" hidden>
     <span id="r-grams">—</span>
-    <span class="r-unit">of support material added</span>
-    <button type="button" class="r-info" id="r-info" aria-label="About this number"
-       title="Grams assume PLA and count only the fins + pad the tool adds, printed near-solid, cross-checked against the builder's fin volume. In test prints, breakaway fins used 20–45% less plastic and printed ~30% faster than slicer supports.">i</button>
+    <span class="r-unit">新增支撑材料</span>
+    <button type="button" class="r-info" id="r-info" aria-label="关于这个数字"
+       title="克数按 PLA 计算，只统计工具新增的鳍与底盘垫，按接近实心打印，并与生成器的体积交叉核对。实测中可掰断支撑鳍比切片软件的支撑少用 20–45% 材料，打印快约 30%。">i</button>
   </div>
 </aside>
 </div><!-- /right-rail -->
@@ -274,24 +274,20 @@
 
 <div id="drop">
   <div class="inner">
-    <p class="big">Print it support-free, in any slicer</p>
-    <p class="lede">Rotate a part however it prints best, and Support Fins bakes the
-      breakaway supports right into the STL. It prints the same on any machine, in any
-      slicer, with supports turned off.</p>
+    <p class="big">任何切片软件里，都能免支撑打印</p>
+    <p class="lede">按最好打印的方向旋转零件，支撑鳍会把可掰断的支撑直接烧进 STL。
+      之后在任何机器、任何切片软件里，只要关闭支撑，打印效果都一样。</p>
     <ol class="steps">
-      <li><strong>Open an STL or 3MF.</strong> Drop it anywhere on this page.</li>
-      <li><strong>Rotate it.</strong> Red marks every surface that needs support.</li>
-      <li><strong>Export.</strong> Fins come baked in — no slicer supports needed.</li>
+      <li><strong>打开 STL 或 3MF。</strong>把文件拖到本页任意位置即可。</li>
+      <li><strong>旋转零件。</strong>红色标出所有需要支撑的表面。</li>
+      <li><strong>导出。</strong>支撑已烧进模型 —— 无需切片软件的支撑。</li>
     </ol>
-    <p class="small">Opening the 3MF, Bambu Studio and PrusaSlicer may note it has
-      “no config” and load the geometry only — that’s expected. The file is pure
-      geometry with no slicer profile baked in, so it opens the same in every slicer;
-      your part comes in correctly oriented and sized. Just slice with supports off.</p>
-    <p class="small">Nothing is uploaded. The file is read inside this tab and never
-      leaves your machine.</p>
-    <p class="kofi-line">Free and open source. If it ever saves you a print,
-      <a class="kofi" href="https://ko-fi.com/matthewtrahan" target="_blank" rel="noopener">buy
-      me a coffee&nbsp;☕</a>.</p>
+    <p class="small">打开 3MF 时，Bambu Studio 和 PrusaSlicer 可能提示“无配置”并只载入几何
+      —— 这是正常的。文件是纯几何、没有内置切片配置，因此在任何切片软件里打开都一样；
+      零件的朝向和尺寸都是正确的，直接关闭支撑切片即可。</p>
+    <p class="small">不会上传任何东西。文件只在这个标签页内读取，从不离开你的电脑。</p>
+    <p class="kofi-line">免费开源。如果它帮你省下了一次打印，
+      <a class="kofi" href="https://ko-fi.com/matthewtrahan" target="_blank" rel="noopener">请作者喝杯咖啡&nbsp;☕</a>。</p>
   </div>
 </div>
 
@@ -301,15 +297,14 @@
      only when a file has more than one object; single-object files skip it. -->
 <div id="picker" hidden>
   <div class="picker-panel" role="dialog" aria-modal="true" aria-labelledby="picker-title">
-    <h2 id="picker-title">This 3MF has several objects</h2>
-    <p class="picker-sub">Pick the one to add fins to. Check more than one to merge
-      them into a single part.</p>
+    <h2 id="picker-title">这个 3MF 包含多个对象</h2>
+    <p class="picker-sub">选择要添加支撑鳍的对象。勾选多个可把它们合并成一个零件。</p>
     <ul id="picker-list"></ul>
     <div class="picker-foot">
       <span id="picker-hint" class="note"></span>
       <span class="picker-actions">
-        <button class="btn" id="picker-cancel">Cancel</button>
-        <button class="btn primary" id="picker-load">Load</button>
+        <button class="btn" id="picker-cancel">取消</button>
+        <button class="btn primary" id="picker-load">载入</button>
       </span>
     </div>
   </div>

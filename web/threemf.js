@@ -458,7 +458,7 @@ export async function readThreeMF(bytes) {
   const parts = await unzip(bytes);
 
   const rootName = findRootPart(parts);
-  if (!rootName || !parts.has(rootName)) throw new Error('no 3D model part found in this 3MF');
+  if (!rootName || !parts.has(rootName)) throw new Error('这个 3MF 中找不到 3D 模型部件');
 
   // Parse each part on demand and cache it -- a plate can reference the same
   // object_N.model many times, and most parts in a big package go untouched.
@@ -512,7 +512,7 @@ export async function readThreeMF(bytes) {
     });
   }
 
-  if (!objects.length) throw new Error('this 3MF contains no printable mesh geometry');
+  if (!objects.length) throw new Error('这个 3MF 中没有任何可打印的网格几何');
 
   return {
     unit,

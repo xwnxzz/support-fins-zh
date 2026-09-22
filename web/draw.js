@@ -88,7 +88,7 @@ export function drawnWall(a, b, tris, zBed = 0, opts = {}) {
   const dx = b[0] - a[0], dy = b[1] - a[1];
   const len = Math.hypot(dx, dy);
   if (len < PROP.minSpan) {
-    return { ok: false, reason: `wall too short — ${len.toFixed(0)}mm, needs ${PROP.minSpan}mm` };
+    return { ok: false, reason: `支撑墙太短 —— ${len.toFixed(0)}mm，至少需要 ${PROP.minSpan}mm` };
   }
   const out = [];
   // A drawn wall grips the part with the same tine comb the auto fins use, when
@@ -126,7 +126,7 @@ export function drawnWall(a, b, tris, zBed = 0, opts = {}) {
 
   const line = drawnLine(a, b, tris);
   if (!line || line.length < PROP.minStations) {
-    return { ok: false, reason: 'no surface found along that line' };
+    return { ok: false, reason: '这条线上找不到可附着的表面' };
   }
   // Reaching here means no real floor was found below the overhang, so this is a
   // plate-attached wall. `sweep` returns false when any station is shorter than
@@ -144,11 +144,10 @@ export function drawnWall(a, b, tris, zBed = 0, opts = {}) {
   if (!sweep(line, zBed, out)) {
     const clickTop = Math.min(a[2], b[2]) - zBed;
     if (clickTop >= PROP.minHeight + PROP.gap) {
-      return { ok: false, reason: 'this overhang sits above another part of the '
-        + 'model, so a wall standing on the plate can’t reach it — rotate so it '
-        + 'faces the plate' };
+      return { ok: false, reason: '这段悬垂位于模型其他部分的上方，'
+        + '立在底板上的支撑墙够不到它 —— 请旋转让它朝向底板' };
     }
-    return { ok: false, reason: 'nothing to hold up there — the line sits at the plate' };
+    return { ok: false, reason: '这里没有需要托住的东西 —— 这条线就在底板上' };
   }
   let height = 0;
   for (const p of line) height = Math.max(height, p[2] - PROP.gap - zBed);

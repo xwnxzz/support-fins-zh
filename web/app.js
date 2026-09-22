@@ -51,8 +51,7 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 // state as text, so this points there.
 renderer.domElement.setAttribute('role', 'img');
 renderer.domElement.setAttribute(
-  'aria-label', 'Interactive 3D preview of the loaded part. Orientation and support '
-  + 'stats are reported as text in the panel on the left.');
+  'aria-label', '已载入零件的交互式 3D 预览。朝向与支撑统计数据以文字形式显示在左侧面板。');
 viewport.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -187,7 +186,7 @@ function requestShade() {
 
 function showDelta(axis, radians) {
   if (!axis || !radians) return;
-  const label = axis.length > 1 ? 'free' : axis;   // 'XYZE' / 'E' are screen-space
+  const label = axis.length > 1 ? '自由' : axis;   // 'XYZE' / 'E' are screen-space
   const deg = THREE.MathUtils.radToDeg(radians);
   el('rot-delta').textContent =
     `${label} ${deg >= 0 ? '+' : ''}${deg.toFixed(deg % 1 ? 1 : 0)}°`;
@@ -325,9 +324,9 @@ function shade() {
 
   const dropped = res.rawRegionCount - res.regions.length;
   el('s-over').textContent = res.regions.length === 0
-    ? 'none'
-    : `${res.regions.length} region${res.regions.length === 1 ? '' : 's'}` +
-      (dropped ? ` (+${dropped} sliver${dropped === 1 ? '' : 's'})` : '');
+    ? '无'
+    : `${res.regions.length} 处` +
+      (dropped ? `（另有 ${dropped} 处碎小悬垂）` : '');
   el('s-over').classList.toggle('good', res.regions.length === 0);
 
   // Overhang warning (bottom-right card). The tool builds support for the big
@@ -338,9 +337,9 @@ function shade() {
   // its piece via s-flat-note); the fix is almost always a better orientation.
   const warn = el('over-warn');
   if (res.regions.length > 0 && dropped > 0) {
-    warn.textContent = `⚠ ${dropped} small overhang${dropped === 1 ? '' : 's'} `
-      + `(hole ceilings, slots, bore tops) print unsupported this way up and may come `
-      + `out rough. Try Suggest orientation to point them up.`;
+    warn.textContent = `⚠ ${dropped} 处小悬垂（孔顶、槽顶、内孔上沿）`
+      + `在当前朝向下得不到支撑，表面可能粗糙。`
+      + `点“推荐摆放方向”把它们转到朝上。`;
   } else {
     warn.textContent = '';
   }
@@ -353,11 +352,11 @@ function shade() {
   // loaded, the overhangs on screen are self-inflicted by rotating.
   const flat = el('s-flat-note');
   if (res.regions.length === 0) {
-    flat.textContent = 'No supports needed this way up.';
+    flat.textContent = '这个朝向不需要任何支撑。';
     flat.className = 'note good';
   } else if (flatRegions === 0) {
-    flat.textContent = 'This prints clean lying flat. You only need fins if you’re '
-      + 'tilting it for strength.';
+    flat.textContent = '平放即可打印干净。只有为了强度而倾斜时，'
+      + '才需要支撑鳍。';
     flat.className = 'note';
   } else {
     flat.textContent = '';
@@ -366,7 +365,7 @@ function shade() {
   // appends to this line, and the mode / bed-pad / toggle handlers call
   // refreshFins() WITHOUT going through shade(), so appending in place stacked
   // up "· fins 3 ms · fins 3 ms · fins 3 ms" with every toggle.
-  analysisTiming = `${ms.toFixed(0)} ms · weld ${weldMs.toFixed(0)} ms`;
+  analysisTiming = `${ms.toFixed(0)} ms · 焊接 ${weldMs.toFixed(0)} ms`;
   el('s-time').textContent = analysisTiming;
 
   lastResult = res;
@@ -482,8 +481,8 @@ function updateFit() {
   const over = dx > v.x || dy > v.y || dz > v.z;
   const fit = el('s-fit');
   fit.textContent = over
-    ? (added.length ? 'does not fit (with fins)' : 'does not fit')
-    : 'fits';
+    ? (added.length ? '装不下（含支撑鳍）' : '装不下')
+    : '放得下';
   fit.classList.toggle('warn', over);
 }
 
@@ -524,59 +523,56 @@ function explainNoFins(b) {
   // something that was never the problem. This outranks every mode-specific
   // reason below.
   if (b.seating?.kind === 'point' && !b.pad) {
-    return 'this part touches the plate at a single point, so it has nothing to '
-         + 'stand on. Turn the bed pad on to seat it, or rotate until it sits '
-         + 'down on a face or an edge';
+    return '零件只以一点接触底板，没有可站立的面。请开启底盘垫把它固定住，'
+         + '或旋转到让某个面或边稳稳落在底板上';
   }
   if (b.mode === 'prop') {
     const s = b.skipped ?? {};
-    if (!b.rejected.sites) return 'no overhangs to prop in this orientation';
+    if (!b.rejected.sites) return '这个朝向下没有需要支撑的悬垂';
     // Named in the order that tells the user the most. Each is a different
     // stage of the search, and lumping them into "blocked" is what let M5 be
     // recorded as working on a part where it built nothing.
     if (s.wanders) {
       const one = s.wanders === 1;
-      return `${s.wanders} overhang${one ? ' is' : 's are'} bowl-shaped rather than `
-           + `a ledge — ${one ? 'its' : 'their'} lowest points form a ring, not a `
-           + 'line, so there is nothing for a wall to follow. Rotate, or switch '
-           + 'to Draw and place one by hand';
+      return `${s.wanders} 处悬垂是碗状而不是一条檐边 —— 它们的最低点围成一个环，`
+           + '而不是一条线，支撑墙无从沿着它生长。请旋转零件，'
+           + '或切到“手动”模式自己放一段';
     }
     if (s.buried || s.weld) {
-      return 'every wall that reaches these overhangs would fuse to the '
-           + 'part — rotate, or switch to Draw and place one by hand';
+      return '所有能够到这些悬垂的支撑墙都会与零件熔在一起 —— '
+           + '请旋转零件，或切到“手动”模式自己放一段';
     }
     if (s.blocked) {
-      return 'no run of these overhangs is long enough to stand a wall under — '
-           + 'the part is in the way, or they sit too close to the plate';
+      return '这些悬垂中没有足够长的一段可以立支撑墙 —— '
+           + '要么被零件本身挡住，要么离底板太近';
     }
     if (s.stub || s.noLine || s.sliver) {
-      return 'the overhangs here are too small or too low to be worth a wall';
+      return '这里的悬垂太小或太低，不值得做一段支撑墙';
     }
     if (s.degenerate) {
-      return 'the contact lines here collapse to a point — nothing to sweep along';
+      return '这里的接触线缩成了一点 —— 没有可以扫掠的路径';
     }
-    return 'no overhang here can take a prop in this orientation';
+    return '这个朝向下没有任何悬垂能放支撑柱';
   }
   const st = b.patchStats ?? {};
   if (!b.patchCount) {
     // a cylinder or a mesh of small facets has no flat face wide enough
     return (st.tooNarrow ?? 0) > (st.notFlat ?? 0)
-      ? 'nothing flat and wide enough to stand a fin against — curved or '
-        + 'finely faceted surfaces have no flat face to grip'
-      : 'no flat upright face on this part in this orientation';
+      ? '没有足够大又平整的面可以立支撑鳍 —— 曲面或细碎的多边形面'
+        + '没有可抓附的平面'
+      : '这个朝向下零件上没有可用的竖直平面';
   }
   if (!b.rejected.sites) {
     return st.tooHigh
-      ? `${st.tooHigh} flat face${st.tooHigh === 1 ? '' : 's'} found, but every `
-        + 'one starts too far up the part — a fin would be mostly bare stilt. '
-        + 'Rotate so a flat face runs down to the plate'
-      : 'no usable face in this orientation — try rotating';
+      ? `找到了 ${st.tooHigh} 处平面，但它们都从零件过高的位置开始 —— `
+        + '支撑鳍大半会是空立的高跷。请旋转到有平面一直延伸到底板。'
+      : '这个朝向下没有可用平面 —— 试试旋转';
   }
   if (b.rejected.blocked) {
-    return 'the part is in the way of every wall position on the faces it found '
-         + '— rotate, or switch to Draw and place one by hand';
+    return '在找到的这些面上，每个支撑墙位置都被零件本身挡住 '
+         + '—— 请旋转，或切到“手动”模式自己放一段';
   }
-  return 'the workable spots would put the fin inside the part — try rotating';
+  return '可用的位置都会把支撑鳍埋进零件内部 —— 试试旋转';
 }
 
 let finMesh = null;
@@ -1003,8 +999,8 @@ function cancelLay() {
 }
 
 function syncLayUI() {
-  el('lay-face').textContent = layPlacing ? 'Click a face to lay it flat — Esc cancels'
-    : 'Lay a face flat';
+  el('lay-face').textContent = layPlacing ? '点击一个面让它贴平 — Esc 取消'
+    : '以面贴平';
   el('lay-face').classList.toggle('active', layPlacing);
 }
 
@@ -1202,7 +1198,7 @@ function applyBuilt(built) {
 function markFinsStale() {
   for (const m of [finMesh, padMesh, drawnMesh]) if (m) m.material.opacity = 0.25;
   finMaterial.transparent = padMaterial.transparent = drawMaterial.transparent = true;
-  el('s-fins').textContent = 'generating supports…';
+  el('s-fins').textContent = '正在生成支撑…';
 }
 
 // Grams use the selected material's density (materialDensity, set by applyMaterial),
@@ -1257,9 +1253,9 @@ function updateReadout(built, ms) {
  * can hover for it. Either can be empty.
  */
 function setFinNote(lead, detail) {
-  el('s-fin-note').textContent = lead.length ? lead.join('. ') + '.' : '';
+  el('s-fin-note').textContent = lead.length ? lead.join('；') + '。' : '';
   const info = el('s-fin-info');
-  const text = detail.filter(Boolean).join(' ');
+  const text = detail.filter(Boolean).join('');
   if (text) { info.title = text; info.hidden = false; }
   else { info.title = ''; info.hidden = true; }
 }
@@ -1274,41 +1270,41 @@ function updateDrawReadout(built, ms) {
   finMaterial.transparent = padMaterial.transparent = drawMaterial.transparent = false;
   finMaterial.opacity = padMaterial.opacity = drawMaterial.opacity = 1;
   const box = el('s-fins');
-  el('s-pad').textContent = built?.pad ? 'added' : built ? 'not needed' : '—';
+  el('s-pad').textContent = built?.pad ? '已添加' : built ? '不需要' : '—';
 
   const ok = drawnWalls.filter((w) => w.ok);
   const bad = drawnWalls.length - ok.length;
   const tines = ok.reduce((a, w) => a + (w.info?.tines ?? 0), 0);
   box.textContent = ok.length
-    ? `${ok.length} drawn wall${ok.length === 1 ? '' : 's'}` + (tines ? ` · ${tines} tines` : '')
-    : 'none yet';
+    ? `${ok.length} 段手绘支撑墙` + (tines ? ` · ${tines} 个卡齿` : '')
+    : '暂无';
   box.classList.toggle('warn', ok.length === 0);
 
   const lead = [];
   const help = [];
   if (!drawnWalls.length && !drawMsg) {
-    lead.push('Click two points across an overhang (a line lands right where you '
-      + 'draw it, red faces included) to lay a breakaway wall under it');
+    lead.push('在悬垂上点两个点（连线会正好落在你画的位置，红色面也一样），'
+      + '就能在它下方铺出一段可掰断的支撑墙');
   }
   if (ok.length) {
     help.push(tines
-      ? 'The tines grab onto the part and bend away when you snap the wall off.'
-      : 'Each wall stops a hair under the part (0.2mm) so it snaps off clean. Turn '
-        + 'Tines on if you want it to grip the part.');
+      ? '卡齿会咬住零件，掰下支撑墙时随之弯断，不会留下毛刺。'
+      : '每段墙都在零件下方停住，留 0.2mm 间隙，掰断更干净。'
+        + '想让它咬住零件，请开启“卡齿”。');
   }
   if (bad) {
     const one = drawnWalls.find((w) => !w.ok);
-    lead.push(`${bad} wall${bad === 1 ? '' : 's'} couldn’t build here`
-      + `${one?.info?.reason ? ` (${one.info.reason})` : ''}. Undo, or redraw`);
+    lead.push(`${bad} 段支撑墙在这里无法生成`
+      + `${one?.info?.reason ? `（${one.info.reason}）` : ''}，请撤销或重画`);
   }
   if (drawMsg) lead.push(drawMsg);
   if (built?.seating?.kind === 'point') {
     lead.push(built.pad
-      ? 'this part balances on one point, so the bed pad is holding it. Print with the pad on'
-      : 'this part balances on one point. Turn the bed pad on to seat it, or rotate until it sits down');
+      ? '零件只靠一点平衡，目前是底盘垫在支撑它，请保持底盘垫开启后再打印'
+      : '零件只靠一点平衡。请开启底盘垫把它固定住，或旋转到让它稳稳坐下');
   }
   setFinNote(lead, help);
-  if (ms != null) el('s-time').textContent = `${analysisTiming} · pad ${ms.toFixed(0)} ms`;
+  if (ms != null) el('s-time').textContent = `${analysisTiming} · 底盘垫 ${ms.toFixed(0)} ms`;
 }
 
 function updateFinReadout(built, ms) {
@@ -1322,7 +1318,7 @@ function updateFinReadout(built, ms) {
     setFinNote([], []);
     return;
   }
-  el('s-pad').textContent = built.pad ? 'added' : 'not needed';
+  el('s-pad').textContent = built.pad ? '已添加' : '不需要';
   const n = built.fins.length;
   const kind = built.mode === 'prop' ? 'prop' : 'fin';
   // Hand-added walls (Suggest + Draw mix) count toward the tally too.
@@ -1334,17 +1330,17 @@ function updateFinReadout(built, ms) {
     // flat to take a fin. "N fins" alone would hide which is which.
     const p = built.propCount, b = built.braceCount;
     const seg = [];
-    if (b) seg.push(`${b} support fin${b === 1 ? '' : 's'}` + (built.tines ? ` · ${built.tines} tines` : ''));
-    if (p) seg.push(`${p} prop${p === 1 ? '' : 's'}`);
+    if (b) seg.push(`${b} 个支撑鳍` + (built.tines ? ` · ${built.tines} 个卡齿` : ''));
+    if (p) seg.push(`${p} 个支撑柱`);
     autoTxt = seg.join(' + ');
   } else {
     autoTxt = n
-      ? `${n} ${kind === 'prop' ? 'prop' : 'support fin'}${n === 1 ? '' : 's'}`
-        + (built.mode === 'prop' || !built.tines ? '' : ` · ${built.tines} tines`)
+      ? `${n} 个${kind === 'prop' ? '支撑柱' : '支撑鳍'}`
+        + (built.mode === 'prop' || !built.tines ? '' : ` · ${built.tines} 个卡齿`)
       : '';
   }
-  const drawnTxt = drawnOk ? `${autoTxt ? ' + ' : ''}${drawnOk} drawn` : '';
-  box.textContent = (autoTxt + drawnTxt) || 'none possible';
+  const drawnTxt = drawnOk ? `${autoTxt ? ' + ' : ''}手绘 ${drawnOk} 段` : '';
+  box.textContent = (autoTxt + drawnTxt) || '无法放置';
   box.classList.toggle('warn', n === 0 && !drawnOk);
 
   // `lead` = short + must-see, stays in the panel; `help` = how-it-works and
@@ -1362,22 +1358,21 @@ function updateFinReadout(built, ms) {
       const b = built.braceCount, p = built.propCount;
       if (b) {
         help.push(built.tines
-          ? 'The tines grab onto the part and bend away when you snap the supports off.'
-          : 'The fins stand a hair off the part (0.2mm) so they pop off. Turn Tines on if you want them to grip.');
+          ? '卡齿会咬住零件，掰下支撑时随之弯断，不会留下毛刺。'
+          : '支撑鳍与零件之间留了 0.2mm 间隙，可以直接掰下。想让它抓附零件请开启“卡齿”。');
       }
       if (p && !b) {
-        help.push('These are plain props, not gripping fins. The overhangs here are '
-          + 'too shallow or curved to stand a fin against, so there are no tines to add.');
+        help.push('这些是普通支撑柱，不是带抓附的支撑鳍。这里的悬垂太平缓或太弯曲，'
+          + '立不住支撑鳍，所以没有卡齿可加。');
       } else if (p) {
-        help.push(`The ${p} prop${p === 1 ? '' : 's'} sit under overhangs too shallow `
-          + 'to grip, so those get no tines.');
+        help.push(`这 ${p} 个支撑柱位于过浅、无法咬合的悬垂下方，因此不带卡齿。`);
       }
     } else if (built.mode === 'prop') {
-      help.push('Each one stops a hair under the part (0.2mm) so it pops off instead of needing a cut.');
+      help.push('每个支撑柱都在零件下方留 0.2mm 间隙，可以直接掰下，无需剪钳。');
     }
   }
   if (drawnOk) {
-    lead.push(`plus ${drawnOk} wall${drawnOk === 1 ? '' : 's'} you added by hand`);
+    lead.push(`另外还有你手动添加的 ${drawnOk} 段支撑墙`);
   }
   // Hand-placement feedback has to surface here too (Suggest + Draw mix), or a
   // rejected wall fails silently -- the same silence-as-success trap as M5. This
@@ -1386,8 +1381,8 @@ function updateFinReadout(built, ms) {
     const bad = drawnWalls.length - drawnOk;
     if (bad) {
       const one = drawnWalls.find((w) => !w.ok);
-      lead.push(`${bad} drawn wall${bad === 1 ? '' : 's'} couldn’t attach here`
-              + (one?.info?.reason ? ` (${one.info.reason})` : ''));
+      lead.push(`${bad} 段手绘支撑墙无法附着在这里`
+              + (one?.info?.reason ? `（${one.info.reason}）` : ''));
     }
     if (drawMsg) lead.push(drawMsg);
   }
@@ -1396,40 +1391,38 @@ function updateFinReadout(built, ms) {
   // not cosmetic. Must-see -> stays visible.
   if (n && built.seating?.kind === 'point') {
     lead.push(built.pad
-      ? 'this part balances on one point, so the bed pad is holding it. Print with the pad on'
-      : 'this part balances on one point with nothing under it. Turn the bed pad on, or rotate until it sits down');
+      ? '零件只靠一点平衡，目前是底盘垫在支撑它，请保持底盘垫开启后再打印'
+      : '零件只靠一点平衡，下方再无其他支撑。请开启底盘垫，或旋转到让它稳稳坐下');
   }
   if (built.sagRisk) {
     // The coverage slider is left of centre, so a broad flat overhang got rows
     // spaced wider than the 12mm anti-sag guide. That's allowed on purpose (fewer
     // supports), but the plate can bow between them -- must-see, so it's in the
     // panel, not behind the (i).
-    lead.push('coverage is below the anti-sag guide, so a broad overhang may sag '
-            + 'between supports — nudge the slider right if the surface bows');
+    lead.push('覆盖密度低于防下垂建议值，大悬垂面可能在支撑之间下垂 '
+            + '—— 如果表面出现弯曲，把滑块往右移一点');
   }
   if (built.unserved) {
     // An un-served ledge is a shallow overhang with no room for a prop and too
     // flat to stand a fin against. The fix (tilt steeper) is a sentence, so it
     // rides in the (i) rather than the panel.
-    help.push(`${built.unserved} overhang${built.unserved === 1 ? ' is' : 's are'} `
-            + 'too shallow for a fin this way up. Tilt the part steeper so a fin can '
-            + 'follow it (try Suggest orientation), or add a wall by hand.');
+    help.push(`${built.unserved} 处悬垂在当前朝向下太平缓，立不住支撑鳍。`
+            + '把零件倾斜得更陡，让支撑鳍能贴着它生长（可试“推荐摆放方向”），'
+            + '或者手动添加一段支撑墙。');
   }
   if (built.skipped?.bore) {
     // A support standing INSIDE a bore or slot scars a surface you can't clean --
     // worse than a little sag. The tool refuses those on purpose; the honest fix
     // is to rotate the hole so it faces out and prints clean with no support.
     const b = built.skipped.bore;
-    help.push(`${b} overhang${b === 1 ? ' sits' : 's sit'} inside a bore or slot, `
-            + `where a support would leave a mark you can’t reach. The tool leaves `
-            + `${b === 1 ? 'it' : 'them'} alone, so turn the hole upward to print `
-            + `${b === 1 ? 'it' : 'them'} clean.`);
+    help.push(`有 ${b} 处悬垂位于内孔或槽内，在那里放支撑会留下你够不到的痕迹。`
+            + `工具刻意不处理它们：把孔转到朝上，就能干净地打印出来。`);
   }
   setFinNote(lead, help);
   // ms is absent when a hand-drawn wall (Suggest + Draw mix) re-runs the readout
   // without rebuilding the auto fins -- don't touch the timing line then, and
   // never throw, or the updateReceipt() call after this one never happens.
-  if (ms != null) el('s-time').textContent = `${analysisTiming} · fins ${ms.toFixed(0)} ms`;
+  if (ms != null) el('s-time').textContent = `${analysisTiming} · 支撑 ${ms.toFixed(0)} ms`;
 }
 
 /** Show the Draw controls (hint + Undo/Clear) only while hand-placement is live,
@@ -1437,9 +1430,9 @@ function updateFinReadout(built, ms) {
  *  wall in the Suggest "+ Add" augment. */
 function syncDrawControls() {
   el('draw-controls').hidden = !drawShown();
-  el('draw-hint').innerHTML = 'Click <strong>two points</strong> across an overhang '
-    + '— straight onto the red faces — to lay a breakaway wall along that line. '
-    + '<kbd>Esc</kbd> or right-click cancels.';
+  el('draw-hint').innerHTML = '在悬垂上点<strong>两个点</strong>'
+    + '（直接点在红色面上）即可沿这条线铺出一段可掰断的支撑墙。'
+    + '按 <kbd>Esc</kbd> 或右键可取消。';
 }
 
 /** The "+ Add walls by hand" toggle, shown only in Suggest mode. */
@@ -1447,7 +1440,7 @@ function syncAugmentUI() {
   const show = finsVisible && finMode === 'auto';
   el('augment-toggle').hidden = !show;
   el('augment-toggle').classList.toggle('primary', drawAugment);
-  el('augment-toggle').textContent = drawAugment ? 'Done adding walls' : '+ Add walls by hand';
+  el('augment-toggle').textContent = drawAugment ? '完成添加' : '+ 手动添加支撑墙';
 }
 
 el('fin-mode').addEventListener('change', (e) => {
@@ -1540,7 +1533,7 @@ applyMaterial(el('material').value);   // sync density + tunables to the initial
  *  so undo/redo can re-sync it after restoring the flag. */
 function syncFinsToggleUI() {
   el('fins-toggle').classList.toggle('primary', finsVisible);
-  el('fins-toggle').textContent = finsVisible ? 'Fins on' : 'Add fins';
+  el('fins-toggle').textContent = finsVisible ? '支撑鳍已开' : '添加支撑鳍';
   el('fin-opts').hidden = !finsVisible;
 }
 
@@ -1951,22 +1944,22 @@ let suggestCurBore = 0;
 function noSupportVerdict(c) {
   if (c.regions === 0) {
     const rough = c.holes ?? 0;
-    const roughCaveat = rough ? ` One small spot may print a bit rough.` : '';
+    const roughCaveat = rough ? ` 可能有小面积打印略粗糙。` : '';
     // The suggester ranks for printability, not strength (it can't know the load).
     // If this pose also stands the part's long axis up the layers, that's the weak
     // print direction, so add a heads-up and point at the Strength arrow.
     const lv = c.size ? layerVerdict(c.size) : null;
     const strengthCaveat = lv?.posture === 'weak'
-      ? ` It prints tall, though, the weaker direction, so check the Strength arrow if it bears a load.`
+      ? ` 不过它打得很高，属于较弱的方向，如承受载荷请看看受力箭头。`
       : '';
-    return { tier: 'free', badge: 'No support',
-      note: `This way up it needs no fins, 0 g.${roughCaveat}${strengthCaveat}` };
+    return { tier: 'free', badge: '无需支撑',
+      note: `这样摆放不需要任何支撑鳍，新增材料 0 g。${roughCaveat}${strengthCaveat}` };
   }
   if ((c.bore ?? 0) === 0 && suggestCurBore > 0) {
     const grams = (c.volume ?? 0) * materialDensity / 1000;
-    return { tier: 'holeclean', badge: 'Bores clean',
-      note: `This way up the bores point up, so no support sits inside a hole to scar it `
-          + `(${fmtGrams(grams)} g of fins, all on the outside).` };
+    return { tier: 'holeclean', badge: '孔内干净',
+      note: `这样摆放时内孔都朝上，没有支撑伸进孔里划伤配合面`
+          + `（支撑鳍共 ${fmtGrams(grams)} g，全部在外部）。` };
   }
   return null;
 }
@@ -1978,12 +1971,12 @@ function renderSuggestions() {
     const row = document.createElement('button');
     row.className = 'btn suggest-row';
     const point = c.seating === 'point';
-    const overs = c.walls === 0 ? 'no fins' : `${c.walls} fin${c.walls === 1 ? '' : 's'}`;
+    const overs = c.walls === 0 ? '无需支撑' : `${c.walls} 个支撑鳍`;
     // Rough holes = the small hole/slot/bore-top overhangs this pose leaves
     // unsupported (dropped slivers + bore-refused). Showing it is what makes a
     // hole-friendly pose legible: "Best · 12 rough" over "#3 · 561".
     const rough = (c.holes ?? 0) + (c.bore ?? 0);
-    const roughTxt = rough ? ` · ${rough} rough` : '';
+    const roughTxt = rough ? ` · ${rough} 处粗糙` : '';
     // A support-free pose is the headline outcome, not a footnote — badge it green
     // instead of letting it read as a dull "no overhangs → 0 fins".
     const verdict = point ? null : noSupportVerdict(c);
@@ -1994,9 +1987,9 @@ function renderSuggestions() {
     const badge = verdict?.tier === 'holeclean' ? ` <span class="sr-badge">${verdict.badge}</span>` : '';
     // One tight line per pose: rank · height · fins · rough holes. Bed area was
     // dropped to fit -- height already stands in for how it sits.
-    const tail = point ? ' · can’t print (on a point)' : roughTxt;
+    const tail = point ? ' · 无法打印（仅一点接触）' : roughTxt;
     row.innerHTML =
-      `<span class="sr-rank">${i === 0 ? 'Best' : `#${i + 1}`}</span>` +
+      `<span class="sr-rank">${i === 0 ? '最佳' : `#${i + 1}`}</span>` +
       `<span class="sr-line">${c.height.toFixed(0)} mm · ${overs}${tail}${badge}</span>`;
     if (point) row.classList.add('bad');
     if (verdict?.tier === 'free') row.classList.add('free');
@@ -2028,7 +2021,7 @@ function hideSuggestions() {
 el('suggest-orient').addEventListener('click', () => {
   if (!part || !topology) return;
   const btn = el('suggest-orient');
-  btn.disabled = true; btn.textContent = 'Ranking…';
+  btn.disabled = true; btn.textContent = '正在评估…';
   // let the button repaint before the (up to ~1s) solve blocks the thread
   requestAnimationFrame(() => requestAnimationFrame(() => {
     try {
@@ -2041,14 +2034,14 @@ el('suggest-orient').addEventListener('click', () => {
       const tog = el('suggest-toggle');
       tog.hidden = false;
       tog.setAttribute('aria-expanded', 'true');
-      tog.setAttribute('aria-label', 'Collapse suggestions');
-      tog.title = 'Collapse';
+      tog.setAttribute('aria-label', '收起推荐结果');
+      tog.title = '收起';
       el('suggest-body').hidden = false;
       if (!candidates.length || confidence === 'none') {
         el('suggest-list').hidden = true;
         el('suggest-note').textContent = confidence === 'none'
-          ? 'No printable orientation: this part balances on a point at every angle.'
-          : 'Nothing to suggest for this part.';
+          ? '没有任何可打印的朝向：这个零件无论怎么转都只靠一点平衡。'
+          : '这个零件没有可推荐的方向。';
       } else {
         renderSuggestions();
         // Lead with the win when the best pose needs no support (or clears every
@@ -2059,12 +2052,12 @@ el('suggest-orient').addEventListener('click', () => {
           note.textContent = verdict.note;
           note.className = 'hint good';
         } else {
-          note.textContent = 'Click a pose to turn the part.';
+          note.textContent = '点选一个朝向来旋转零件。';
           note.className = 'hint';
         }
       }
     } finally {
-      btn.disabled = false; btn.textContent = 'Suggest orientation';
+      btn.disabled = false; btn.textContent = '推荐摆放方向';
     }
   }));
 });
@@ -2075,8 +2068,8 @@ el('suggest-toggle').addEventListener('click', () => {
   const open = tog.getAttribute('aria-expanded') !== 'false';
   const next = !open;
   tog.setAttribute('aria-expanded', String(next));
-  tog.setAttribute('aria-label', next ? 'Collapse suggestions' : 'Show suggestions');
-  tog.title = next ? 'Collapse' : 'Show';
+  tog.setAttribute('aria-label', next ? '收起推荐结果' : '展开推荐结果');
+  tog.title = next ? '收起' : '展开';
   el('suggest-body').hidden = !next;
 });
 
@@ -2111,8 +2104,8 @@ el('load-suggest').addEventListener('click', () => {
   const cur = loadAlignment([w.x, w.y, w.z]);
   const note = el('load-note');
   if (!pose || (cur && pose.cross >= cur.cross - 0.05)) {
-    note.textContent = 'This is about the strongest printable orientation for this '
-      + 'load — a better-aligned pose wouldn’t sit on the bed.';
+    note.textContent = '对这组受力来说，这已经是可打印的最强朝向了 '
+      + '—— 更顺层的摆法都无法稳坐在底板上。';
     note.className = `load-verdict ${cur ? cur.quality : 'mixed'}`;
     note.hidden = false;
     el('load-suggest').hidden = true;
@@ -2136,7 +2129,7 @@ const customRow = el('custom-vol');
 const customInputs = ['vx', 'vy', 'vz'].map(el);
 
 for (const v of VOLUMES) volumeSelect.add(new Option(volLabel(v), volLabel(v)));
-volumeSelect.add(new Option('Custom…', 'custom'));
+volumeSelect.add(new Option('自定义…', 'custom'));
 
 let volume = { ...DEFAULT_VOLUME };
 try {
@@ -2242,7 +2235,7 @@ function pickObjects(objects) {
     const meta = document.createElement('span');
     meta.className = 'pk-meta';
     const s = o.bbox.size.map((v) => Math.round(v));
-    meta.textContent = `${o.tris.toLocaleString()} tris · ${s[0]}×${s[1]}×${s[2]} mm`;
+    meta.textContent = `${o.tris.toLocaleString()} 三角面 · ${s[0]}×${s[1]}×${s[2]} mm`;
     label.append(cb, name, meta);
     li.append(label);
     list.append(li);
@@ -2253,8 +2246,8 @@ function pickObjects(objects) {
   function refresh() {
     const n = selected().length;
     loadBtn.disabled = n === 0;
-    loadBtn.textContent = n > 1 ? `Merge ${n} & load` : 'Load';
-    hint.textContent = n > 1 ? `${n} selected — merged into one part` : '';
+    loadBtn.textContent = n > 1 ? `合并 ${n} 个并载入` : '载入';
+    hint.textContent = n > 1 ? `已选 ${n} 个 —— 将合并为一个零件` : '';
   }
   refresh();
   modal.hidden = false;
@@ -2306,14 +2299,14 @@ async function parseModel(buffer) {
   const notes = [];
   if (objects.length > 1) {
     notes.push(chosen.length === 1
-      ? `imported “${chosen[0].name}” of ${objects.length} objects`
-      : `merged ${chosen.length} of ${objects.length} objects into one part`);
+      ? `已从 ${objects.length} 个对象中载入“${chosen[0].name}”`
+      : `已把 ${objects.length} 个对象中的 ${chosen.length} 个合并为一个零件`);
   } else if (chosen[0].meshes > 1) {
-    notes.push(`merged ${chosen[0].meshes} bodies into one part`);
+    notes.push(`已把 ${chosen[0].meshes} 个实体合并为一个零件`);
   }
-  if (skipped) notes.push(`ignored ${skipped} support/non-printable ${skipped === 1 ? 'body' : 'bodies'}`);
-  if (unit && unit !== 'millimeter') notes.push(`converted from ${unit} to mm`);
-  importNote = notes.length ? `3MF: ${notes.join('; ')}.` : '';
+  if (skipped) notes.push(`已忽略 ${skipped} 个支撑/不可打印实体`);
+  if (unit && unit !== 'millimeter') notes.push(`已从 ${unit} 换算为毫米`);
+  importNote = notes.length ? `3MF：${notes.join('；')}。` : '';
 
   return geometry;
 }
@@ -2325,7 +2318,7 @@ async function loadFile(file) {
     if (geometry) setPart(geometry, file.name);
   } catch (err) {
     console.error(err);
-    alert(`Could not read ${file.name}:\n${err.message}`);
+    alert(`无法读取 ${file.name}：\n${err.message}`);
   }
 }
 
