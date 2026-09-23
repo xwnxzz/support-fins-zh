@@ -1,6 +1,10 @@
 ﻿<#
   Support Fins 简体中文版 —— 一键启动（Windows）
 
+  两种发行包布局都支持：
+    · 完整源码包：本目录下有 web\index.html 与 dev-server.py  → 用 dev-server.py（禁用缓存）
+    · web-only 包：本目录下直接就是站点（有 index.html）      → 用 python -m http.server
+
   用法（任选）：
     双击 start.bat                     # 最省事：起服务 + 自动打开浏览器
     .\start.ps1                        # 同上，默认 http://127.0.0.1:8731/
@@ -11,8 +15,7 @@
 
   为什么需要起服务：本应用是「原生 ES 模块 + Web Worker」的纯静态站点，
   浏览器禁止 file:// 下加载模块，双击 index.html 只会白屏。本脚本负责
-  找一个空闲端口 → 起 dev-server.py（禁用缓存，改完刷新即生效）→
-  等服务真正就绪后再自动打开浏览器。
+  找一个空闲端口 → 起本地服务 → 等服务真正就绪后再自动打开浏览器。
 #>
 [CmdletBinding()]
 param(
@@ -24,7 +27,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
-$webDir = Join-Path $root 'web'
+$repoWeb = Join-Path $root 'web'
 $server = Join-Path $root 'dev-server.py'
 
 function Say([string]$Text, [string]$Color = 'Gray') { Write-Host $Text -ForegroundColor $Color }
@@ -40,12 +43,22 @@ if ($Help) {
   Say ''
   Say '  start.ps1 [-Port 8731] [-BindHost 127.0.0.1] [-NoBrowser]' 'White'
   Say '  起本地服务并（默认）自动打开浏览器；Ctrl+C 停止。' 'Gray'
+  Say '  完整源码包用 dev-server.py（禁用缓存）；web-only 包用 python -m http.server。' 'Gray'
   Say ''
   exit 0
 }
 
-if (-not (Test-Path (Join-Path $webDir 'index.html'))) {
-  Stop-WithMessage "找不到 $webDir\index.html —— 请把本脚本放在仓库根目录（与 web\ 同级）再运行。"
+# ------------------------------------------- 0. 认清是哪种包布局、站点根在哪
+if (Test-Path (Join-Path $repoWeb 'index.html')) {
+  $siteDir = $repoWeb
+  $useDevServer = Test-Path $server
+  $mode = if ($useDevServer) { 'dev-server.py（禁用缓存）' } else { 'python -m http.server（静态）' }
+} elseif (Test-Path (Join-Path $root 'index.html')) {
+  $siteDir = $root
+  $useDevServer = $false
+  $mode = 'python -m http.server（静态）'
+} else {
+  Stop-WithMessage "在这个目录里找不到 index.html（也找不到 web\index.html）。请把 start.ps1 / start.bat 放在解压出来的包根目录，与 index.html（或 web\ 文件夹）同级。"
 }
 
 # ---------------------------------------------------------------- 1. Python 3
@@ -113,6 +126,8 @@ $url = if ($wildcard) { "http://127.0.0.1:$chosen/" } else { "http://${BindHost}
 Say ''
 Say '  ── Support Fins 简体中文版 ──────────────────────────────' 'DarkGray'
 Say "  地址：$url" 'Cyan'
+Say "  服务：$mode" 'DarkGray'
+Say "  入口：$(Join-Path $siteDir 'index.html')" 'DarkGray'
 if ($wildcard) { Say "  局域网：把 127.0.0.1 换成本机 IP，其它设备也能访问" 'DarkGray' }
 Say '  停止：在这个窗口按 Ctrl+C' 'DarkGray'
 Say '  ─────────────────────────────────────────────────────────' 'DarkGray'
@@ -138,11 +153,10 @@ if (-not $NoBrowser) {
 $pyArgs = @($py.Pre)          # 例如 py -3 里的 -3；数组为空时 splat 不传任何参数
 Push-Location $root
 try {
-  if (Test-Path $server) {
+  if ($useDevServer) {
     & $py.Exe @pyArgs $server $chosen '--host' $BindHost
   } else {
-    Say '（没找到 dev-server.py，改用 python -m http.server；它不禁用缓存，改动源码后可能需要强制刷新）' 'DarkGray'
-    & $py.Exe @pyArgs '-m' 'http.server' $chosen '--bind' $BindHost '--directory' $webDir
+    & $py.Exe @pyArgs '-m' 'http.server' $chosen '--bind' $BindHost '--directory' $siteDir
   }
 } finally {
   Pop-Location
