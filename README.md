@@ -50,8 +50,11 @@ MIT 许可，著作权归原作者 Matthew Trahan（见 [LICENSE](LICENSE)）。
 
 ## 运行
 
-应用是无构建步骤的纯静态 ES 模块站点（three.js 已内置于 `web/vendor/`），
-用官方自带的 dev server（禁用缓存，改完刷新即生效）：
+**要打开的页面是 `web/index.html`，但它必须通过 `http://` 访问 —— 不要双击打开它。**
+这个应用是原生 ES 模块 + Web Worker，浏览器出于安全策略会拒绝 `file://` 下的模块加载，
+双击 `index.html` 只会得到空白页面（控制台报模块加载 / CORS 错误）。起一行本地服务即可。
+
+### 1. 起服务（任选其一）
 
 ```bash
 python3 dev-server.py                # http://localhost:8731/
@@ -72,8 +75,16 @@ Windows 上也可以直接用：
 docker compose up --build    # http://localhost:8731/
 ```
 
+### 2. 打开页面
+
+浏览器访问上面命令打印的地址（默认 **<http://127.0.0.1:8731/>**），
+它对应的文件就是 `web/index.html` —— 这就是入口，直接把文件拖进页面即可开始使用。
+
+> 只想部署、不想跑 dev server？把 `web/` 目录整体丢到任意静态托管（Netlify、Cloudflare Pages、
+> GitHub Pages、nginx…），访问站点根路径，入口同样是 `web/index.html`；不需要后端、不需要构建。
+
 部署到公网：仓库自带 [`wrangler.jsonc`](wrangler.jsonc)（Cloudflare Workers 静态资源，目录 `./web`），
-接入 Cloudflare 的 Git 集成即可；也可以把 `web/` 目录整体丢到任意静态托管。
+接入 Cloudflare 的 Git 集成即可。
 `web/_redirects` 与 [`nginx.conf`](nginx.conf) 分别对应 Cloudflare 与容器两条路径。
 
 ## 验证
