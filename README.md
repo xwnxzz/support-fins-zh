@@ -48,13 +48,31 @@ MIT 许可，著作权归原作者 Matthew Trahan（见 [LICENSE](LICENSE)）。
 （Support Fins、GitHub、Ko-fi）；材料名 PLA / PETG、单位 mm、格式名 STL / 3MF；写进 STL 文件头与
 3MF 元数据的标识（那是给切片软件看的，不是界面文案）；`web/vendor/three/` 第三方库原样保留。
 
+**汉化之外新增的文件**
+
+| 路径 | 作用 |
+| --- | --- |
+| `start.bat` | **Windows 一键启动：双击即可** —— 自动找 Python、挑空闲端口、起服务，就绪后自动开浏览器 |
+| `start.ps1` | 上面那个 `.bat` 背后的脚本，也可以直接运行（`-Port` / `-BindHost` / `-NoBrowser` / `-Help`） |
+| `start.sh` | Linux / macOS 的启动脚本（`./start.sh [端口] [绑定地址]`） |
+| `tools/i18n-zh/` | 可重放的汉化替换脚本 + 英文串盘点脚本 + 设计说明 |
+| `README.en.md` | 上游英文 README（原 `README.md` 改名而来，内容未改） |
+
 ## 运行
 
 **要打开的页面是 `web/index.html`，但它必须通过 `http://` 访问 —— 不要双击打开它。**
 这个应用是原生 ES 模块 + Web Worker，浏览器出于安全策略会拒绝 `file://` 下的模块加载，
-双击 `index.html` 只会得到空白页面（控制台报模块加载 / CORS 错误）。起一行本地服务即可。
+双击 `index.html` 只会得到空白页面（控制台报模块加载 / CORS 错误）。
 
-### 1. 起服务（任选其一）
+### 1. 一键启动（Windows，最省事）
+
+**双击 `start.bat`** 就行：它会自动找 Python 3、挑一个空闲端口、起服务，
+**等服务真正就绪后再自动打开浏览器**。停止服务：在它开出的那个窗口里按 `Ctrl+C`。
+
+也可以带参数用：`start.bat -Port 8800`、`start.bat -BindHost 0.0.0.0`（局域网可访问）、
+`start.bat -NoBrowser`（只起服务）。
+
+### 2. 手动起服务（任选其一）
 
 ```bash
 python3 dev-server.py                # http://localhost:8731/
@@ -62,11 +80,12 @@ python3 dev-server.py 8080           # 换端口
 python3 dev-server.py --host 0.0.0.0 # 局域网其它设备也能访问
 ```
 
-Windows 上也可以直接用：
+Windows 上也可以直接用（`start.ps1` 就是 `start.bat` 背后那份脚本）：
 
 ```powershell
-.\start.ps1                 # 默认 http://127.0.0.1:8731/
+.\start.ps1                 # 默认 http://127.0.0.1:8731/，并自动开浏览器
 .\start.ps1 -Port 8800
+.\start.ps1 -Help
 ```
 
 或者用 Docker（镜像就是 nginx 提供 `web/`，URL 与 dev server 一致）：
@@ -75,10 +94,10 @@ Windows 上也可以直接用：
 docker compose up --build    # http://localhost:8731/
 ```
 
-### 2. 打开页面
+### 3. 打开页面
 
 浏览器访问上面命令打印的地址（默认 **<http://127.0.0.1:8731/>**），
-它对应的文件就是 `web/index.html` —— 这就是入口，直接把文件拖进页面即可开始使用。
+它对应的文件就是 `web/index.html` —— 这就是入口，直接把 STL/3MF 拖进页面即可开始使用。
 
 > 只想部署、不想跑 dev server？把 `web/` 目录整体丢到任意静态托管（Netlify、Cloudflare Pages、
 > GitHub Pages、nginx…），访问站点根路径，入口同样是 `web/index.html`；不需要后端、不需要构建。
