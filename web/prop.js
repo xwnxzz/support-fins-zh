@@ -186,18 +186,29 @@ export const PROP = {
 };
 
 // minSpanShort -- the span floor for a RIM run of a round overhang (see buildProps).
-// DERIVED, not picked:
-//   * the squat path's floor: a rim stub is the same cheap object as a squat wall
-//     (a thin wall on a thin brim), so it inherits that "still worth printing" bar;
-//   * the wall's own base: a wall stands on `footFor(h)` half-width feet either side,
-//     so anything shorter than 2 x footMin is a nub that cannot stand on its own foot.
-// It stays ABSOLUTE (mm) on purpose: the floor is about whether the SUPPORT is worth
-// printing, not about the part's size. A part whose rim strip is under this gets no
-// support because none would be meaningful (its overhang band is shallower than a
-// nozzle pass), while a large round part's strip is deep enough for the ordinary
-// `minSpan` path. tests/round_boundary.test.js pins R = 2 .. 100 at four mesh
-// densities and the flat-face-with-a-hole case this floor must NOT fire on.
-PROP.minSpanShort = Math.max(PROP.minSpanSquat, 2 * PROP.footMin);
+// DERIVED from the support itself, never picked:
+//   * 2 x footMin -- a wall stands on `footFor(h)` half-width feet either side, so a
+//     run shorter than that cannot stand on its own foot; and
+//   * minStations x stationStep -- shorter than that the engine cannot even represent
+//     the run (it samples every stationStep and needs minStations samples).
+// It stays ABSOLUTE (mm) for the same reason: the floor says whether the SUPPORT is
+// worth printing, not how big the part is. A part whose rim strip is under it gets no
+// support because none would be meaningful (its band is barely a nozzle pass deep),
+// while a large round part's strip is deep enough for the ordinary `minSpan` path.
+// Deliberately NOT the squat path's 4.0: that number kept a coarse 16-segment sphere's
+// 3.5mm rim runs out, so the verdict depended on mesh density -- measured, and the
+// reason tests/round_validation.test.js demands density stability across 16/8, 48/24
+// and 96/48. tests/round_boundary.test.js pins the flat-face-with-a-hole case this
+// floor must NOT fire on.
+PROP.minSpanShort = Math.max(2 * PROP.footMin,
+                             PROP.minStations * PROP.stationStep);
+
+// Below this sub-patch area the WEDGE path will not serve the overhang (fins.js
+// PERP.minArea is 500 with a 22mm width gate; measured: a lying cylinder's underside
+// band is 240mm^2 x 11.6mm, a broad plate's patch is 1000mm^2+), so the rim floor is
+// allowed there even on a patch with a dominant down-slope. Mirrored deliberately --
+// if PERP.minArea moves, move this with it.
+PROP.wedgeServeArea = 400;
 
 /**
  * Split one overhang region into locally-straight sub-patches.
@@ -2138,7 +2149,14 @@ export function buildProps(topo, result, rot, opts = {}) {
         const tooLow = (k) => k >= 0 && k < line.length
           && line[k][2] - PROP.gap < PROP.minHeight;
         const taperBounded = tooLow(run[0] - 1) || tooLow(run[1]);
-        const spanFloor = (shortOk && taperBounded) ? PROP.minSpanShort : PROP.minSpan;
+        // A patch this small cannot be served by the WEDGE path either (its broad-face
+        // gate is PERP.minArea 500 / minWidth 22 in fins.js -- measured to sit above a
+        // lying cylinder's 240mm^2 band), so withholding the rim floor here leaves the
+        // overhang with nothing at all. Broad patches keep the veto, which is what
+        // protects the wedge row (pinned by tests/tine_density.test.js).
+        const wedgeCannotServe = patch.area < PROP.wedgeServeArea;
+        const spanFloor = ((shortOk || wedgeCannotServe) && taperBounded)
+          ? PROP.minSpanShort : PROP.minSpan;
         const span = Math.hypot(sub[sub.length - 1][0] - sub[0][0],
                                 sub[sub.length - 1][1] - sub[0][1]);
         if (span < spanFloor) { skipped.stub++; continue; }

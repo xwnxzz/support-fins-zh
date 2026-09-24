@@ -1,4 +1,4 @@
-﻿// ROUND-BOUNDARY support: a round overhang's supportable strip is only a few mm
+// ROUND-BOUNDARY support: a round overhang's supportable strip is only a few mm
 // deep where it meets the part's boundary (the rim), and it used to get NOTHING.
 //
 // The bug (reported against a circular model): auto placement put no fins on a ball
@@ -299,18 +299,21 @@ Deno.test('round: a shallow CONE underside is served (convex rim)', () => {
   }
 });
 
-Deno.test('round: a CONCAVE bowl (ring-lowest) is still refused -- known gap, not a crash', () => {
-  // Its lowest points form a ring, so there is no straight contact line to sweep: the
-  // engine counts noLine/stub/blocked and builds nothing. Pinned so the gap is visible
-  // and so a future bowl implementation has to come here and change this expectation.
+Deno.test('round: a CONCAVE bowl (ring-lowest) is served too', () => {
+  // This test started out as its own opposite: the bowl's lowest points form a ring, so
+  // there is no straight contact line to sweep, and it produced noLine/stub/blocked with
+  // ZERO walls -- a documented gap. It is served now because the rim floor also applies
+  // to a patch too small for the WEDGE path (PROP.wedgeServeArea); a bowl's ring breaks
+  // into exactly such patches. Measured: short radial walls around the outer flank.
   const { res, built } = build(bowl());
   assert(res.regions.length >= 1, 'the bowl does have overhang regions');
-  assert(wallsOf(built).length === 0,
-    `bowl suddenly produced ${wallsOf(built).length} wall(s) -- if that is the new intended `
-    + 'behaviour, replace this gap test with the real requirement');
-  const sk = built.skipped ?? {};
-  assert((sk.stub ?? 0) + (sk.blocked ?? 0) + (sk.noLine ?? 0) > 0,
-    'the refusal must be recorded in the skip counters, never silent');
+  assert(wallsOf(built).length >= 1,
+    `bowl got no support (fins=${built.fins.length}, skipped=${JSON.stringify(built.skipped)})`);
+  for (const q of wallsOf(built)) {
+    assert(q.span >= PROP.minSpanShort - 1e-6,
+      `a bowl wall is under the rim floor: ${q.span.toFixed(1)}mm`);
+    assert(q.height > PROP.minHeight, `a bowl wall is too short: ${q.height.toFixed(1)}mm`);
+  }
 });
 
 Deno.test('round: a lying cylinder still gets only the central wedge -- known gap', () => {
@@ -355,11 +358,16 @@ Deno.test('round: a LEVEL face cut by voids keeps the 7mm floor (rim licence mus
 
 // --- 6. the floor itself is derived, not picked -----------------------------------
 
-Deno.test('round: minSpanShort is DERIVED from the wall it has to stand on', () => {
-  const want = Math.max(PROP.minSpanSquat, 2 * PROP.footMin);
+Deno.test('round: minSpanShort is DERIVED from the support it has to stand on', () => {
+  // No magic number: the floor is the larger of the wall's own base width (it stands on
+  // footFor(h) half-width feet either side) and the shortest run the engine can even
+  // represent (minStations samples, one stationStep apart). Measured = 3.2mm.
+  const want = Math.max(2 * PROP.footMin, PROP.minStations * PROP.stationStep);
   assert(PROP.minSpanShort === want,
-    `minSpanShort should be max(minSpanSquat, 2*footMin) = ${want}, got ${PROP.minSpanShort}`);
-  assert(PROP.minSpanShort < PROP.minSpan,
+    `minSpanShort should be max(2*footMin, minStations*stationStep) = ${want}, `
+    + `got ${PROP.minSpanShort}`);
+  const wanted = want;
+  assert(wanted < PROP.minSpan,
     'the rim floor must be a RELAXATION of minSpan, never above it');
 });
 
