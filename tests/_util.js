@@ -2,8 +2,16 @@
 // --allow-read tests/` runs offline. The support engine is pure geometry, so
 // every test is: build some geometry, assert an invariant on the triangle soup.
 
-export const WEB = new URL('../web/', import.meta.url).pathname;
-export const MODELS = new URL('../prototype/stress/models/', import.meta.url).pathname;
+// `new URL(...).pathname` is NOT a filesystem path: it keeps a leading slash and
+// percent-encodes the URL (a space becomes %20), so on Windows -- or anywhere the
+// checkout path contains a space -- every fixture read failed with NotFound and
+// 26 model-dependent tests died before running. The two uses want different
+// things: the engine is dynamically IMPORTED (a module specifier, so keep it a
+// URL) while the fixtures are READ (a filesystem path).
+import { fileURLToPath } from 'node:url';
+
+export const WEB = new URL('../web/', import.meta.url).href;
+export const MODELS = fileURLToPath(new URL('../prototype/stress/models/', import.meta.url));
 
 export const { buildTopology, analyze } = await import(`${WEB}overhangs.js`);
 export const fins = await import(`${WEB}fins.js`);
