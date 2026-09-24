@@ -55,15 +55,6 @@ export const PROP = {
   footMin: 1.6,
   footRatio: 0.12,  // foot half-width as a fraction of wall height
   minSpan: 7.0,     // a wall shorter than this is not worth the plate space
-  minSpanShort: 4.0,  // floor for a rim run on a patch with NO dominant down-slope
-                    // -- a curved/round boundary (a ball, cone or bowl bottom, a
-                    // tube's lowest line). There the supportable strip is only a few
-                    // mm deep at the boundary and `minSpan`'s 7mm floor refused every
-                    // wall, so a round bottom got no support at all while a straight
-                    // ledge kept its 7mm rule. A patch that DOES have a down-slope is
-                    // left alone: its short tail is a slope meeting the bed, which the
-                    // wedge row already serves, and cheap stub walls there would
-                    // replace one good wall (and flatten the tine-grip slider).
   minHeight: 1.5,   // nor is one this short
   // SQUAT BED SUPPORT. A flanged T-wall needs ~minHeight of headroom just to
   // exist (gap 0.2 + baseH 1.0 + a sliver of tip taper), so a bed overhang lower
@@ -193,6 +184,20 @@ export const PROP = {
   tineEdgeBand: 8.0,   // mm of dense comb held at each end of the run
   tineMidFactor: 2.0,  // interior spacing = requested step * this (2mm dense -> 4mm)
 };
+
+// minSpanShort -- the span floor for a RIM run of a round overhang (see buildProps).
+// DERIVED, not picked:
+//   * the squat path's floor: a rim stub is the same cheap object as a squat wall
+//     (a thin wall on a thin brim), so it inherits that "still worth printing" bar;
+//   * the wall's own base: a wall stands on `footFor(h)` half-width feet either side,
+//     so anything shorter than 2 x footMin is a nub that cannot stand on its own foot.
+// It stays ABSOLUTE (mm) on purpose: the floor is about whether the SUPPORT is worth
+// printing, not about the part's size. A part whose rim strip is under this gets no
+// support because none would be meaningful (its overhang band is shallower than a
+// nozzle pass), while a large round part's strip is deep enough for the ordinary
+// `minSpan` path. tests/round_boundary.test.js pins R = 2 .. 100 at four mesh
+// densities and the flat-face-with-a-hole case this floor must NOT fire on.
+PROP.minSpanShort = Math.max(PROP.minSpanSquat, 2 * PROP.footMin);
 
 /**
  * Split one overhang region into locally-straight sub-patches.
@@ -571,8 +576,12 @@ export function patchTracks(pts, patchTris, step = PROP.stationStep, support = n
   // Does this patch have a down-slope for walls to run along? If it does, a short
   // usable run is that slope meeting the bed -- the wedge row's job, and cheap stub
   // walls there would only replace it. If it does NOT, the patch is near-level or
-  // radially symmetric (a round/cap/bowl boundary), where a short run at the track's
-  // end is a rim stub that has to be supported or the round bottom gets nothing.
+  // radially symmetric (a convex cap's rim), where a short run may be a rim stub
+  // that has to be supported or the round bottom gets nothing.
+  //
+  // This slope is a VETO, not the licence: on its own it cannot tell a curved rim
+  // from a flat face that happens to be level, so the licence is the taper test in
+  // buildProps (the run must be bounded by surface that is too LOW, not by a void).
   kept.shortOk = slope < PROP.contourSlopeMin;
   return kept;
 }
@@ -2101,27 +2110,35 @@ export function buildProps(topo, result, rot, opts = {}) {
       // discarding the track over a local problem. See `longestRun`.
       const usable = line.map((p, k) =>
         p[2] - PROP.gap >= PROP.minHeight && stationIsClear(line, k, topo, rot, off));
-      // EVERY usable run, not just the longest one. A straight track across a ROUND
-      // overhang (a ball/cone/bowl bottom, a lying cylinder) is a CHORD: the
-      // stations that can carry a wall sit where the track crosses the region's
-      // BOUNDARY -- the rim -- with the shallow middle in between. Keeping only the
-      // longest run threw one of those two rim runs away, and on a symmetric cap
-      // both fall under the old span floor, so the whole track was dropped as
-      // `stub` and a round bottom got nothing (or just the bed pad under its
-      // middle, which is exactly what the user saw).
+      // EVERY usable run, not just the longest one. A straight track across a CONVEX
+      // round overhang (a ball bottom, a shallow cone) is a CHORD: the stations that
+      // can carry a wall sit where the track crosses the region's BOUNDARY -- the
+      // rim -- with the shallow middle in between. Keeping only the longest run threw
+      // one of those two rim runs away, and on a symmetric cap both fall under the
+      // old span floor, so the whole track was dropped as `stub` and a round bottom
+      // got nothing (or just the bed pad under its middle, which is what the user
+      // saw). SCOPE: this serves a rim whose strip tapers off into shallowness. A
+      // concave BOWL (lowest points forming a ring) and a lying cylinder's shallow
+      // band are still refused -- see tests/round_boundary.test.js, which pins both
+      // the served cases and those two gaps.
       const runs = usableRuns(usable);
       if (!runs.length) { skipped.blocked++; continue; }
       for (const run of runs) {
         if (run[1] - run[0] < PROP.minStations) { skipped.blocked++; continue; }
         const sub = line.slice(run[0], run[1]);
 
-        // A run that reaches either END of the track, on a patch with no down-slope
-        // to run walls along, is sitting on a ROUND overhang's boundary -- the rim --
-        // where the headroom actually is and the supportable strip is only a few mm
-        // deep. Those runs get the 4mm squat floor instead of the 7mm "worth the
-        // plate space" one, which is what gave a round bottom no support at all.
-        const atBoundary = run[0] === 0 || run[1] === usable.length;
-        const spanFloor = (atBoundary && shortOk) ? PROP.minSpanShort : PROP.minSpan;
+        // The short rim floor applies ONLY to a run whose supportable strip TAPERS
+        // OFF into shallowness: just outside the run the surface is still THERE but
+        // has dropped below the minimum wall height. That is the signature of a
+        // curved rim (a ball/cone/bowl bottom) -- and it is exactly what the earlier
+        // `run touches the track's end` test could not tell apart, because a short run
+        // that merely stops at a VOID (a bore, a slot, a notch, a patch edge) also
+        // touches a track end. Those keep the full 7mm floor, so a flat face with a
+        // hole no longer sprouts stub walls.
+        const tooLow = (k) => k >= 0 && k < line.length
+          && line[k][2] - PROP.gap < PROP.minHeight;
+        const taperBounded = tooLow(run[0] - 1) || tooLow(run[1]);
+        const spanFloor = (shortOk && taperBounded) ? PROP.minSpanShort : PROP.minSpan;
         const span = Math.hypot(sub[sub.length - 1][0] - sub[0][0],
                                 sub[sub.length - 1][1] - sub[0][1]);
         if (span < spanFloor) { skipped.stub++; continue; }
