@@ -1,8 +1,8 @@
-// ROUND-BOUNDARY support: a round overhang's supportable strip is only a few mm
+﻿// ROUND-BOUNDARY support: a round overhang's supportable strip is only a few mm
 // deep where it meets the part's boundary (the rim), and it used to get NOTHING.
 //
 // The bug (reported against a circular model): auto placement put no fins on a ball
-// bottom -- the readout said "无法放置 / no usable face" and only the central bed pad
+// bottom -- the readout said "鏃犳硶鏀剧疆 / no usable face" and only the central bed pad
 // was built. Two gates caused it:
 //   1. buildProps kept only the LONGEST usable run per track, so on a chord across a
 //      radially symmetric cap one of the two rim runs was thrown away; and
@@ -12,7 +12,8 @@
 // This file pins the fix, its SCOPE, and the cases it deliberately does NOT serve.
 // Every expectation below is a MEASURED number, not a hope -- if a future change moves
 // one, read the test it broke before "fixing" the test.
-import { buildTopology, analyze, fins, prop, assert } from './_util.js';
+import { buildTopology, analyze, fins, prop, assert, insideCount, isClosed, ptTriDist2 }
+  from './_util.js';
 
 const { PROP } = prop;
 const IDENTITY = [1, 0, 0, 0, 1, 0, 0, 0, 1];
@@ -22,11 +23,35 @@ const topoOf = (L) => {
   const array = Float64Array.from(L);
   return buildTopology({ getAttribute: () => ({ array, count: array.length / 3 }) });
 };
-const build = (L) => {
+const build = (L, opts = {}) => {
   const topo = topoOf(L);
   const res = analyze(topo, 45, IDENTITY);
-  return { topo, res, built: fins.buildFins(topo, res, IDENTITY, AUTO) };
+  return { topo, res, built: fins.buildFins(topo, res, IDENTITY, { ...AUTO, ...opts }) };
 };
+
+/** Distance from a point to the SEATED part surface (independent of the engine). */
+function distToPart(topo, offset, p) {
+  let best = Infinity;
+  for (let f = 0; f < topo.nFaces; f++) {
+    const o = f * 9;
+    const A = [topo.pos[o] + offset.x, topo.pos[o + 1] + offset.y, topo.pos[o + 2] + offset.z];
+    const B = [topo.pos[o + 3] + offset.x, topo.pos[o + 4] + offset.y, topo.pos[o + 5] + offset.z];
+    const C = [topo.pos[o + 6] + offset.x, topo.pos[o + 7] + offset.y, topo.pos[o + 8] + offset.z];
+    const d2 = ptTriDist2(p, A, B, C);
+    if (d2 < best) best = d2;
+  }
+  return Math.sqrt(best);
+}
+
+/**
+ * Support vertices that must never be inside the part: everything ABOVE the plate.
+ * Vertices sitting exactly on z=0 are excluded on purpose -- a floor flange's base
+ * plane is coplanar with a model's flat bottom face, and the inside test's ray cast
+ * is degenerate on a coplanar face (it reported 135 phantom "inside" verts, all at
+ * z = 0.00, on the cone; none above it). Weld risk is about the wall BODY, which is
+ * what this keeps.
+ */
+const abovePlate = (tris) => tris.filter((v) => v[2] > 0.02);
 
 // --- shape builders (outward winding; verified by the signed volume in each test) ---
 const P = (r, t, z) => [r * Math.cos(t), r * Math.sin(t), z];
@@ -337,3 +362,49 @@ Deno.test('round: minSpanShort is DERIVED from the wall it has to stand on', () 
   assert(PROP.minSpanShort < PROP.minSpan,
     'the rim floor must be a RELAXATION of minSpan, never above it');
 });
+
+// --- 7. print-quality invariants, not just "something was placed" -------------------
+
+Deno.test('round: ball rim walls are watertight, fuse nothing, and actually reach the overhang', () => {
+  // "A wall exists" is not the promise. The promise is: an added solid is CLOSED, its
+  // body clears the part (only tines may bite), and its top really meets the overhang
+  // within the breakaway gap -- otherwise it is a floating stub.
+  const walls = build(sphere(20), { tines: false });
+  assert(walls.built.triangles.length > 0, 'no wall geometry to check');
+  assert(isClosed(walls.built.triangles), 'rim wall geometry is not closed');
+  assert(isClosed(walls.built.padTriangles), 'bed pad geometry is not closed');
+  const leaked = insideCount(walls.topo, IDENTITY, walls.res.offset, abovePlate(walls.built.triangles));
+  assert(leaked === 0,
+    `${leaked} wall verts are inside the STL -- the rim wall fused instead of standing off`);
+
+  for (const q of walls.built.props) {
+    for (const p of q.line) {
+      const d = distToPart(walls.topo, walls.res.offset, p);
+      assert(d <= PROP.gap + 0.15,
+        `a rim wall top floats ${d.toFixed(2)}mm under the overhang (gap should be `
+        + `${PROP.gap}mm) -- it props nothing`);
+    }
+  }
+
+  // Tines ON must add bite into the part (the grip), and the walls-only build must not.
+  const gripped = build(sphere(20));
+  assert(gripped.built.tines >= 1, 'the rim walls got no grip tines');
+  const biting = insideCount(gripped.topo, IDENTITY, gripped.res.offset, abovePlate(gripped.built.triangles));
+  assert(biting > leaked, 'turning tines on added no bite into the rim');
+});
+
+Deno.test('round: cone walls keep the same invariants', () => {
+  const walls = build(cone(), { tines: false });
+  assert(isClosed(walls.built.triangles), 'cone wall geometry is not closed');
+  assert(isClosed(walls.built.padTriangles), 'cone pad geometry is not closed');
+  const leaked = insideCount(walls.topo, IDENTITY, walls.res.offset, abovePlate(walls.built.triangles));
+  assert(leaked === 0, `${leaked} cone wall verts are inside the STL`);
+  for (const q of walls.built.props) {
+    for (const p of q.line) {
+      const d = distToPart(walls.topo, walls.res.offset, p);
+      assert(d <= PROP.gap + 0.15,
+        `a cone wall top floats ${d.toFixed(2)}mm under the overhang`);
+    }
+  }
+});
+
