@@ -1,0 +1,12 @@
+# Byte-exact files.
+#
+# The vendored STEP engine (web/vendor/occt/) is third-party, is verified by hash in
+# tests/step.test.js, and its glue/licence files legitimately contain CRLF. Git's
+# line-ending normalization rewrites them on checkout (measured: the glue came back
+# 96871 -> 96852 bytes, the licence 27030 -> 26526), which would break the pin for
+# everyone else and alter a licence file. `-text` disables the conversion, `-diff`
+# stops git from treating it as text at all.
+web/vendor/occt/* -text -diff
+
+# STL fixtures are binary model files; never touch them.
+*.stl -text -diff
