@@ -8,3 +8,6 @@ dist/
 out/
 dev-models/
 prototype/stress/models/
+# STEP fixtures: *.step written by prototype/stress/gen_step.py, plus the third-party
+# set tools/fetch-step-fixtures.mjs downloads (pinned by hash, see prototype/step-fixtures.json).
+prototype/stress/step/

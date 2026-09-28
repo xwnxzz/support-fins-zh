@@ -19,6 +19,16 @@ import sys
 
 
 class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
+    # WebAssembly must be served as application/wasm: the browser only uses its
+    # streaming compiler for that type, and while Emscripten falls back to
+    # instantiating from an ArrayBuffer, that costs an extra full copy of the 7.6MB
+    # STEP engine. Python's mimetypes reads the Windows registry, which does not
+    # know .wasm, so state it here instead of leaving it to the OS.
+    extensions_map = {
+        **http.server.SimpleHTTPRequestHandler.extensions_map,
+        '.wasm': 'application/wasm',
+    }
+
     def end_headers(self):
         self.send_header('Cache-Control', 'no-store, must-revalidate')
         self.send_header('Pragma', 'no-cache')

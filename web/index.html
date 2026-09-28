@@ -29,7 +29,8 @@
 <header id="topbar">
   <span class="brand" title="Support Fins — 打印免支撑"><img src="favicon.svg" alt="" class="brand-mark">支撑鳍&nbsp;Support&nbsp;Fins</span>
   <label class="btn primary">
-    打开 STL / 3MF<input type="file" id="file" accept=".stl,.3mf" hidden>
+    打开 STL / 3MF / STEP<input type="file" id="file"
+      accept=".stl,.3mf,.step,.stp,.iges,.igs,.brep" hidden>
   </label>
   <label class="field">
     成型空间
@@ -278,13 +279,16 @@
     <p class="lede">按最好打印的方向旋转零件，支撑鳍会把可掰断的支撑直接烧进 STL。
       之后在任何机器、任何切片软件里，只要关闭支撑，打印效果都一样。</p>
     <ol class="steps">
-      <li><strong>打开 STL 或 3MF。</strong>把文件拖到本页任意位置即可。</li>
+      <li><strong>打开 STL、3MF 或 STEP。</strong>把文件拖到本页任意位置即可。</li>
       <li><strong>旋转零件。</strong>红色标出所有需要支撑的表面。</li>
       <li><strong>导出。</strong>支撑已烧进模型 —— 无需切片软件的支撑。</li>
     </ol>
     <p class="small">打开 3MF 时，Bambu Studio 和 PrusaSlicer 可能提示“无配置”并只载入几何
       —— 这是正常的。文件是纯几何、没有内置切片配置，因此在任何切片软件里打开都一样；
       零件的朝向和尺寸都是正确的，直接关闭支撑切片即可。</p>
+    <p class="small">STEP / IGES / BREP 由内置的 OpenCascade 引擎在浏览器里转换成网格
+      （首次打开这类文件时会加载约 7.6 MB 的引擎，之后由浏览器缓存；打开 STL / 3MF 不受影响）。
+      文件的单位会按原样换算成毫米，多实体装配会先让你选择要处理哪个实体。</p>
     <p class="small">不会上传任何东西。文件只在这个标签页内读取，从不离开你的电脑。</p>
     <p class="kofi-line">免费开源。如果它帮你省下了一次打印，
       <a class="kofi" href="https://ko-fi.com/matthewtrahan" target="_blank" rel="noopener">请作者喝杯咖啡&nbsp;☕</a>。</p>
@@ -292,12 +296,13 @@
 </div>
 
 <!-- Object picker: a 3MF plate can hold several distinct objects (a Bambu/
-     MakerWorld file often does), and this tool fins ONE part. Rather than merge
-     a plate of unrelated bodies into one soup, we let the user choose. Shown
-     only when a file has more than one object; single-object files skip it. -->
+     MakerWorld file often does) and so can a STEP assembly, while this tool fins
+     ONE part. Rather than merge unrelated bodies into one soup, we let the user
+     choose. Shown only when a file has more than one object; single-object files
+     (and single-body STEP parts) skip it. -->
 <div id="picker" hidden>
   <div class="picker-panel" role="dialog" aria-modal="true" aria-labelledby="picker-title">
-    <h2 id="picker-title">这个 3MF 包含多个对象</h2>
+    <h2 id="picker-title">这个文件包含多个对象</h2>
     <p class="picker-sub">选择要添加支撑鳍的对象。勾选多个可把它们合并成一个零件。</p>
     <ul id="picker-list"></ul>
     <div class="picker-foot">

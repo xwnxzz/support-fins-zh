@@ -17,6 +17,7 @@ import { PROP } from './prop.js';
 import { findWallPatches } from './planes.js';
 import { drawnWall } from './draw.js';
 import { writeBinarySTL, download } from './stl.js';
+import { sniffModel, isStepFamily, convertStepFile, onStepStatus, FORMAT_LABEL } from './step.js';
 import { writeThreeMF, readThreeMF } from './threemf.js';
 
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
@@ -132,7 +133,8 @@ const partMaterial = new THREE.MeshStandardMaterial({
 let part = null;
 let partName = '';
 let topology = null;      // welded adjacency, rebuilt only when the mesh changes
-let importNote = '';      // what the 3MF reader had to decide (merge, unit, skips)
+let importNote = '';      // what the reader had to decide (3MF: merge/unit/skips;
+                          // STEP family: bodies, shells, engine conversion)
 let weldMs = 0;
 let analysisTiming = '';
 let lastSize = null;
@@ -1616,7 +1618,7 @@ function buildExportGeometry() {
   // whichever walls the live mode contributes -- hand-drawn in Draw, suggested
   // in Suggest -- plus the pad, all already in print space
   const finTris = [...activeAdded()];
-  const base = partName.replace(/\.(stl|3mf)$/i, '') || 'part';
+  const base = partName.replace(/\.(stl|3mf|step|stp|iges|igs|brep)$/i, '') || 'part';
   return { partTris, finTris, base };
 }
 
@@ -2173,17 +2175,11 @@ for (const inp of customInputs) {
 
 const loader = new STLLoader();
 
-/**
- * Sniff the format from the CONTENT, not the extension. A 3MF is an OPC package,
- * so it opens with the ZIP magic; an STL never does. Going by bytes means a file
- * saved as .stl by a slicer that actually wrote a 3MF (it happens), or a .3mf the
- * user renamed, still lands in the right parser.
- */
-function isZip(buffer) {
-  if (buffer.byteLength < 4) return false;
-  const b = new Uint8Array(buffer, 0, 4);
-  return b[0] === 0x50 && b[1] === 0x4b && b[2] === 0x03 && b[3] === 0x04;
-}
+// Which parser gets the file is decided in step.js's sniffModel: by CONTENT first (a
+// 3MF is an OPC package and opens with the ZIP magic, a STEP starts 'ISO-10303-21', an
+// IGES is 80-column records, a BREP starts 'DBRep_DrawableShape'), with the file
+// extension only as a last resort. That way a file a slicer renamed still lands in the
+// right parser instead of being mangled by the STL reader.
 
 /** A three.js BufferGeometry from a flat mm position array (the STL layout). */
 function geometryFromPositions(positions) {
@@ -2278,10 +2274,19 @@ function pickObjects(objects) {
  * position array STLLoader produces, so everything downstream (setPart, the
  * weld, the whole engine) is unchanged.
  */
-async function parseModel(buffer) {
+async function parseModel(buffer, filename = '') {
   importNote = '';
-  if (!isZip(buffer)) return loader.parse(buffer);
+  const kind = sniffModel(buffer, filename);
+  if (kind === 'zip') return parseThreeMF(buffer);
+  if (isStepFamily(kind)) return parseStep(buffer, kind, filename);
+  return loader.parse(buffer);
+}
 
+/**
+ * A 3MF plate goes through the object picker because it can hold several distinct
+ * objects; the same question comes up one level earlier for a 3MF's ZIP container.
+ */
+async function parseThreeMF(buffer) {
   const { objects, unit, skipped } = await readThreeMF(new Uint8Array(buffer));
 
   // One object loads straight in; a plate of several goes to the picker so the
@@ -2311,16 +2316,68 @@ async function parseModel(buffer) {
   return geometry;
 }
 
+/**
+ * STEP / IGES / BREP: the file describes B-rep surfaces, so it goes through the
+ * OpenCascade engine (worker, lazily loaded -- see step.js) and comes back as triangle
+ * soups. Everything after this point is exactly the 3MF path: one body loads straight
+ * in, an assembly goes to the picker, and the status panel says what we decided.
+ */
+async function parseStep(buffer, kind, filename) {
+  const label = FORMAT_LABEL[kind] || 'CAD';
+  const res = await convertStepFile(buffer, kind, filename);
+  if (!res.ok) throw new Error(res.error);
+
+  let chosen = res.bodies;
+  if (res.bodies.length > 1) {
+    chosen = await pickObjects(res.bodies);
+    if (!chosen) return null;               // cancelled: keep the current part
+  }
+  if (!chosen || !chosen.length) return null;
+
+  const notes = [...res.notes];
+  if (res.bodies.length > 1) {
+    notes.push(chosen.length === 1
+      ? `已从 ${res.bodies.length} 个实体中载入“${chosen[0].name}”`
+      : `已把 ${res.bodies.length} 个实体中的 ${chosen.length} 个合并为一个零件`);
+  }
+  // One body made of several shells says so -- the same honesty the 3MF note carries.
+  // "面" and not "实体": a faceted STEP solid arrives as one mesh per face, so a plain
+  // sphere legitimately reports thousands of them, and calling those "solids" would
+  // read as a broken file.
+  else if (chosen[0].meshes > 1) {
+    notes.push(`已把 ${chosen[0].meshes} 个面合并为一个零件`);
+  }
+  importNote = `${label}：${notes.join('；')}。`;
+
+  return geometryFromPositions(mergeObjectPositions(chosen));
+}
+
 async function loadFile(file) {
   if (!file) return;
   try {
-    const geometry = await parseModel(await file.arrayBuffer());
+    const geometry = await parseModel(await file.arrayBuffer(), file.name);
     if (geometry) setPart(geometry, file.name);
   } catch (err) {
     console.error(err);
+    clearImportNote();
     alert(`无法读取 ${file.name}：\n${err.message}`);
   }
 }
+
+/** A failed import must not leave "正在加载引擎…" sitting in the status panel. */
+function clearImportNote() {
+  importNote = '';
+  const note = el('s-import-note');
+  if (note) note.textContent = '';
+}
+
+// While a STEP-family file is being tessellated (seconds, and 7.6MB on first use) the
+// status panel says so; report() then replaces it with the import note.
+onStepStatus((msg) => {
+  const note = el('s-import-note');
+  if (note) note.textContent = msg;
+  el('status').hidden = false;
+});
 
 el('file').addEventListener('change', (e) => loadFile(e.target.files[0]));
 
@@ -2328,9 +2385,10 @@ el('file').addEventListener('change', (e) => loadFile(e.target.files[0]));
 async function loadURL(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-  const geometry = await parseModel(await res.arrayBuffer());
+  const name = url.split('/').pop();
+  const geometry = await parseModel(await res.arrayBuffer(), name);
   if (!geometry) return;                       // picker cancelled
-  setPart(geometry, url.split('/').pop());
+  setPart(geometry, name);
   // Drop ?stl= once it has been consumed: the path is nobody's business but the
   // user's, and a stale one in the address bar is misleading after they open a
   // different file.

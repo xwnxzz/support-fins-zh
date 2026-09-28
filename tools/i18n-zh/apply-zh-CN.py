@@ -25,8 +25,10 @@ RULES["web/index.html"] = [
     ('<span class="brand"><img src="favicon.svg" alt="" class="brand-mark">Support&nbsp;Fins</span>',
      '<span class="brand" title="Support Fins — 打印免支撑"><img src="favicon.svg" alt="" '
      'class="brand-mark">支撑鳍&nbsp;Support&nbsp;Fins</span>'),
+    # STEP/IGES/BREP support: the control names the format a user is most likely to
+    # look for. The engine behind it is third-party (web/vendor/occt, LGPL-2.1).
     ('    Open STL / 3MF<input type="file" id="file" accept=".stl,.3mf" hidden>',
-     '    打开 STL / 3MF<input type="file" id="file" accept=".stl,.3mf" hidden>'),
+     '    打开 STL / 3MF / STEP<input type="file" id="file"\n      accept=".stl,.3mf,.step,.stp,.iges,.igs,.brep" hidden>'),
     ('    Build volume\n', '    成型空间\n'),
     ('aria-label="width">×<input', 'aria-label="宽度">×<input'),
     ('aria-label="depth">×<input', 'aria-label="深度">×<input'),
@@ -223,7 +225,7 @@ RULES["web/index.html"] = [
      '    <p class="lede">按最好打印的方向旋转零件，支撑鳍会把可掰断的支撑直接烧进 STL。\n'
      '      之后在任何机器、任何切片软件里，只要关闭支撑，打印效果都一样。</p>\n'
      '    <ol class="steps">\n'
-     '      <li><strong>打开 STL 或 3MF。</strong>把文件拖到本页任意位置即可。</li>\n'
+     '      <li><strong>打开 STL、3MF 或 STEP。</strong>把文件拖到本页任意位置即可。</li>\n'
      '      <li><strong>旋转零件。</strong>红色标出所有需要支撑的表面。</li>\n'
      '      <li><strong>导出。</strong>支撑已烧进模型 —— 无需切片软件的支撑。</li>\n'
      '    </ol>'),
@@ -621,6 +623,22 @@ RULES["web/threemf.js"] = [
     ("throw new Error('this 3MF contains no printable mesh geometry')",
      "throw new Error('这个 3MF 中没有任何可打印的网格几何')"),
 ]
+
+
+# ------------------------------------------------------------------ Chinese-first text
+#
+# The STEP import added UI text that upstream has no English for, so these strings were
+# written in Chinese directly and deliberately have NO rule here (a rule needs an exact
+# English `old` to match):
+#
+#   web/index.html    the .step/.stp/.iges/.igs/.brep accept list on the file input
+#   web/index.html    the paragraph explaining the built-in OpenCascade engine
+#   web/app.js        the STEP/IGES/BREP notes (converted / bodies / faces merged /
+#                     engine errors) and the lazy-engine progress line
+#   web/step.js       every user-visible string in the new module
+#   web/stepworker.js, web/vendor/occt/NOTICE.md
+#
+# Rewriting them is a normal edit to those files; they are not translation drift.
 
 
 def normalize(old, new, text):
